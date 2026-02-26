@@ -100,11 +100,10 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
   useEffect(() => {
     // Fetch location name when location changes
     if (userLocation) {
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${userLocation.lat}&lon=${userLocation.lng}`)
+      fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${userLocation.lat}&longitude=${userLocation.lng}&localityLanguage=en`)
         .then(res => res.json())
         .then(data => {
-          const address = data.address;
-          const name = address.city || address.town || address.village || address.state || 'Unknown location';
+          const name = data.city || data.locality || data.principalSubdivision || 'Unknown location';
           setLocationName(name);
         })
         .catch(err => console.error('Error fetching location name:', err));
