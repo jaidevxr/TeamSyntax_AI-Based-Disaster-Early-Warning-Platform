@@ -257,15 +257,16 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     stateLayerRef.current = stateLayer;
   }, [allStatesData, selectedState, overlayMode, stateAverages]);
 
-  // Calculate state averages from city data
+  // Calculate state averages from real weather data
   useEffect(() => {
     if (weatherData.size === 0) return;
 
     const stateMap = new Map<string, { tempSum: number; aqiSum: number; riskSum: number; count: number }>();
 
-    const cities = getIndianCities();
-    cities.forEach(({ lat, lng }) => {
-      // Determine state based on coordinates (simplified mapping)
+    weatherData.forEach((data, key) => {
+      const [lat, lng] = key.split(',').map(Number);
+
+      // Determine state based on coordinates
       let state = 'Unknown';
       if (lat > 28 && lat < 32 && lng > 76 && lng < 78) state = 'Delhi';
       else if (lat > 18 && lat < 22 && lng > 72 && lng < 78) state = 'Maharashtra';
@@ -287,28 +288,32 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       else if (lat > 15 && lat < 16 && lng > 74 && lng < 75) state = 'Goa';
       else if (lat > 23 && lat < 24 && lng > 85 && lng < 86) state = 'Jharkhand';
 
-      // Calculate risk
-      let risk = 0.3;
-      if ((lng > 79 && lng < 87 && lat > 15 && lat < 24) || (lng < 77 && lat > 8 && lat < 22)) {
-        risk = 0.85;
-      } else if ((lng > 83 && lng < 92 && lat > 24 && lat < 27) || (lat > 30 && lng > 73 && lng < 80)) {
-        risk = 0.75;
-      } else if ((lng > 70 && lng < 78 && lat > 24 && lat < 30)) {
-        risk = 0.65;
-      } else if (lat > 18 && lat < 28 && lng > 74 && lng < 85) {
-        risk = 0.5;
-      }
+      // Real-data risk — same model as disaster layer
+      let risk = 0.0;
+      if (data.temp >= 45) risk += 0.55;
+      else if (data.temp >= 40) risk += 0.45;
+      else if (data.temp >= 35) risk += 0.30;
+      else if (data.temp >= 28) risk += 0.18;
+      else if (data.temp <= 4) risk += 0.45;
+      else if (data.temp <= 10) risk += 0.25;
+      else risk += 0.12;
 
-      const data = weatherData.get(`${lat},${lng}`);
-      if (data) {
-        const existing = stateMap.get(state) || { tempSum: 0, aqiSum: 0, riskSum: 0, count: 0 };
-        stateMap.set(state, {
-          tempSum: existing.tempSum + data.temp,
-          aqiSum: existing.aqiSum + data.aqi,
-          riskSum: existing.riskSum + risk,
-          count: existing.count + 1
-        });
-      }
+      if (data.aqi >= 300) risk += 0.50;
+      else if (data.aqi >= 200) risk += 0.38;
+      else if (data.aqi >= 150) risk += 0.25;
+      else if (data.aqi >= 100) risk += 0.15;
+      else if (data.aqi >= 50) risk += 0.08;
+      else risk += 0.03;
+
+      risk = Math.min(1.0, risk);
+
+      const existing = stateMap.get(state) || { tempSum: 0, aqiSum: 0, riskSum: 0, count: 0 };
+      stateMap.set(state, {
+        tempSum: existing.tempSum + data.temp,
+        aqiSum: existing.aqiSum + data.aqi,
+        riskSum: existing.riskSum + risk,
+        count: existing.count + 1
+      });
     });
 
     // Calculate averages
@@ -324,6 +329,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
     setStateAverages(averages);
   }, [weatherData]);
+
 
   const toggleFilter = (level: RiskLevel) => {
     setActiveFilters(prev => {
@@ -549,59 +555,67 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     markersRef.current = [];
 
     if (overlayMode === 'disaster') {
-      // Show disaster risk - only glow, no center points
-      const cities = getIndianCities();
-      cities.forEach(({ lat, lng }) => {
-        // Calculate risk based on location
-        let risk = 0.3;
-        if ((lng > 79 && lng < 87 && lat > 15 && lat < 24) || // East coast cyclone
-          (lng < 77 && lat > 8 && lat < 22)) { // West coast
-          risk = 0.85;
-        } else if ((lng > 83 && lng < 92 && lat > 24 && lat < 27) || // Flood zones
-          (lat > 30 && lng > 73 && lng < 80)) { // Earthquake zones
-          risk = 0.75;
-        } else if ((lng > 70 && lng < 78 && lat > 24 && lat < 30)) { // Drought
-          risk = 0.65;
-        } else if (lat > 18 && lat < 28 && lng > 74 && lng < 85) { // Central
-          risk = 0.5;
+      // Show disaster risk — 100% driven by real API data (temp + AQI), no static geo-zones
+      weatherData.forEach((data, key) => {
+        const [lat, lng] = key.split(',').map(Number);
+
+        // ── Real-data risk model ──────────────────────────────────────────────
+        // Build risk purely from live temperature and AQI readings
+        let dynamicRisk = 0.0;
+        const riskFactors: string[] = [];
+
+        // Temperature contribution (0 – 0.55)
+        if (data.temp >= 45) {
+          dynamicRisk += 0.55;
+          riskFactors.push(`Severe heatwave: ${data.temp.toFixed(1)}°C`);
+        } else if (data.temp >= 40) {
+          dynamicRisk += 0.45;
+          riskFactors.push(`Heatwave: ${data.temp.toFixed(1)}°C`);
+        } else if (data.temp >= 35) {
+          dynamicRisk += 0.30;
+          riskFactors.push(`High temp: ${data.temp.toFixed(1)}°C`);
+        } else if (data.temp >= 28) {
+          dynamicRisk += 0.18;
+          riskFactors.push(`Warm: ${data.temp.toFixed(1)}°C`);
+        } else if (data.temp <= 4) {
+          dynamicRisk += 0.45;
+          riskFactors.push(`Severe cold wave: ${data.temp.toFixed(1)}°C`);
+        } else if (data.temp <= 10) {
+          dynamicRisk += 0.25;
+          riskFactors.push(`Cold wave: ${data.temp.toFixed(1)}°C`);
+        } else {
+          dynamicRisk += 0.12;
+          riskFactors.push(`Normal temp: ${data.temp.toFixed(1)}°C`);
         }
 
-        const data = weatherData.get(`${lat},${lng}`);
-
-        // Calculate dynamic risk based on weather
-        let dynamicRisk = risk; // Start with baseline
-        const riskFactors = ['Baseline geographical risk'];
-
-        if (data) {
-          // Temperature factor: Extreme heat increases risk (drought, heatwave)
-          if (data.temp > 40) {
-            dynamicRisk += 0.2;
-            riskFactors.push('Extreme heat alert');
-          } else if (data.temp > 35) {
-            dynamicRisk += 0.1;
-            riskFactors.push('High temperature');
-          }
-
-          // AQI factor: Severe pollution is a slow disaster
-          if (data.aqi > 300) {
-            dynamicRisk += 0.25;
-            riskFactors.push('Hazardous air quality');
-          } else if (data.aqi > 200) {
-            dynamicRisk += 0.15;
-            riskFactors.push('Very unhealthy AQI');
-          } else if (data.aqi > 150) {
-            dynamicRisk += 0.05;
-            riskFactors.push('Poor air quality');
-          }
+        // AQI contribution (0 – 0.50)
+        if (data.aqi >= 300) {
+          dynamicRisk += 0.50;
+          riskFactors.push(`Hazardous AQI: ${data.aqi}`);
+        } else if (data.aqi >= 200) {
+          dynamicRisk += 0.38;
+          riskFactors.push(`Very unhealthy AQI: ${data.aqi}`);
+        } else if (data.aqi >= 150) {
+          dynamicRisk += 0.25;
+          riskFactors.push(`Unhealthy AQI: ${data.aqi}`);
+        } else if (data.aqi >= 100) {
+          dynamicRisk += 0.15;
+          riskFactors.push(`Moderate AQI: ${data.aqi}`);
+        } else if (data.aqi >= 50) {
+          dynamicRisk += 0.08;
+          riskFactors.push(`Good AQI: ${data.aqi}`);
+        } else {
+          dynamicRisk += 0.03;
+          riskFactors.push(`Excellent AQI: ${data.aqi}`);
         }
 
-        // Cap risk at 1.0 (100%)
+        // Cap at 1.0
         dynamicRisk = Math.min(1.0, dynamicRisk);
 
         const level = getIntensityRange(dynamicRisk);
         if (!activeFilters.has(level)) return;
 
-        // Only large glow circle with hover tooltip
+        // Large glow circle
         const glowCircle = L.circleMarker([lat, lng], {
           radius: heatmapRadius,
           fillColor: getColor(dynamicRisk, 'disaster', 0.25),
@@ -611,7 +625,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
           className: 'heatmap-glow'
         });
 
-        // Invisible interactive layer for hover
+        // Hover circle with real-data tooltip
         const hoverCircle = L.circleMarker([lat, lng], {
           radius: 30,
           fillColor: 'transparent',
@@ -619,12 +633,12 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
           weight: 0,
           fillOpacity: 0,
         }).bindTooltip(`
-          <div style="font-size: 11px; padding: 4px; max-width: 200px;">
-            <strong>Disaster Risk</strong><br/>
-            Level: <strong style="color: ${getColor(dynamicRisk, 'disaster', 1)}">${level.toUpperCase()}</strong><br/>
-            Intensity: <strong>${(dynamicRisk * 100).toFixed(0)}%</strong>
+          <div style="font-size: 11px; padding: 4px; max-width: 220px;">
+            <strong>Disaster Risk Score</strong><br/>
+            Level: <strong style="color: ${getColor(dynamicRisk, 'disaster', 1)}">${level.toUpperCase()}</strong>
+            &nbsp;(${(dynamicRisk * 100).toFixed(0)}%)<br/>
             <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.2);">
-              <span style="opacity: 0.8; font-size: 10px;">Contributing Factors:</span>
+              <span style="opacity: 0.8; font-size: 10px;">Live data factors:</span>
               <ul style="margin: 2px 0 0 0; padding-left: 14px; opacity: 0.9;">
                 ${riskFactors.map(f => `<li>${f}</li>`).join('')}
               </ul>

@@ -166,20 +166,28 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
 
     const advancePhase = () => {
       if (idx < phaseKeys.length) {
-        setCurrentPhase(phaseKeys[idx]);
+        const currentKey = phaseKeys[idx];
+        setCurrentPhase(currentKey);
         setCalcProgress(((idx + 1) / (phaseKeys.length + 1)) * 100);
 
+        // Mark previous phase as completed
         if (idx > 0) {
           setCompletedPhases(prev => new Set([...prev, phaseKeys[idx - 1]]));
         }
 
         idx++;
-        phaseTimerRef.current = setTimeout(advancePhase, 700 + Math.random() * 1000);
+        phaseTimerRef.current = setTimeout(advancePhase, 700 + Math.random() * 800);
+      } else {
+        // Mark the LAST phase (analyzing) as completed too — this was the bug
+        setCompletedPhases(prev => new Set([...prev, phaseKeys[phaseKeys.length - 1]]));
+        setCurrentPhase('done');
+        setCalcProgress(100);
       }
     };
 
     advancePhase();
   }, []);
+
 
   // ── Severity order helper (for trend comparison) ────────────────────────
   const severityRank = (s: EarlyAlert['severity']) =>
