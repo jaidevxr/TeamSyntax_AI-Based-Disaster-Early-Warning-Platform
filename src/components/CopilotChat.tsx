@@ -58,11 +58,27 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
   }, [userLocation]);
 
   useEffect(() => {
-    // Monitor online/offline status
-    const handleOnline = () => setOnline(true);
-    const handleOffline = () => setOnline(false);
+    // Probe actual connectivity with a real HTTP request
+    // navigator.onLine is unreliable in dev/proxy/VPN environments
+    const probeConnectivity = async () => {
+      try {
+        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+        const probeUrl = SUPABASE_URL
+          ? `${SUPABASE_URL}/functions/v1/health-check`  // any fast endpoint
+          : 'https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m';
+        await fetch(probeUrl, { method: 'HEAD', signal: AbortSignal.timeout(4000) });
+        setOnline(true);
+      } catch {
+        // Only mark offline if fetch itself fails
+        setOnline(false);
+      }
+    };
 
-    setOnline(isOnline());
+    probeConnectivity();
+
+    const handleOnline = () => { setOnline(true); };
+    const handleOffline = () => { probeConnectivity(); }; // Re-probe on browser offline event
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
@@ -112,10 +128,8 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
     setLoading(true);
 
     try {
-      // Check if online and if we need offline fallback
-      if (!online) {
-        throw new Error('OFFLINE');
-      }
+      // Always attempt the edge function — navigator.onLine is unreliable in dev/proxy environments
+      // Offline fallback is triggered by actual network fetch failures, not navigator.onLine
 
       // Call Groq via Supabase Edge Function — API key is server-side only, never in client code
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
@@ -142,7 +156,12 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
 
       if (!edgeResponse.ok) {
         const errData = await edgeResponse.json().catch(() => ({}));
-        throw new Error(errData.error || `Edge function error: ${edgeResponse.status}`);
+        // Throw a fetch-like error so the offline fallback catches it
+        const statusMsg = edgeResponse.status === 401 ? 'Invalid Supabase key' :
+          edgeResponse.status === 404 ? 'Edge function not found — deploy copilot-chat function' :
+            edgeResponse.status === 500 ? (errData.error || 'Edge function internal error') :
+              `Server error ${edgeResponse.status}`;
+        throw new Error(statusMsg);
       }
 
       const data = await edgeResponse.json();
@@ -175,7 +194,15 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
       console.error('Error:', error);
 
       // If offline or network error, use offline knowledge base
-      if (error instanceof Error && (error.message === 'OFFLINE' || error.message.includes('Failed to fetch'))) {
+      // Fall back to offline knowledge if: no internet, fetch failed, or GROQ_API_KEY not set in Supabase
+      const isNetworkError = error instanceof Error && (
+        error.message === 'OFFLINE' ||
+        error.message.includes('Failed to fetch') ||
+        error.message.includes('NetworkError') ||
+        error.message.includes('Load failed') ||
+        error.message.includes('Network request failed')
+      );
+      if (isNetworkError) {
         try {
           // Try to find answer in offline knowledge base
           const offlineAnswer = searchOfflineKnowledge(input);
@@ -304,9 +331,9 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
           </div>
           <div className="flex items-center gap-2 md:gap-3 flex-wrap">
             {!online && (
-              <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-warning bg-warning/10 px-2 md:px-3 py-1.5 md:py-2 rounded-lg">
-                <WifiOff className="w-3 h-3 md:w-4 md:h-4" />
-                <span className="font-medium">Offline</span>
+              <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground bg-muted/30 px-2 md:px-3 py-1.5 md:py-2 rounded-lg">
+                <WifiOff className="w-3 h-3 md:w-4 md:h-4 text-yellow-500" />
+                <span className="font-medium">Limited connectivity — offline knowledge active</span>
               </div>
             )}
             {!modelReady && !modelLoading && language !== 'en' && (
