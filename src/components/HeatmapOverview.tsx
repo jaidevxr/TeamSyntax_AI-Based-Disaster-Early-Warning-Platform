@@ -72,6 +72,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
       maxZoom: 18,
       regionName: 'browsing',
+      className: isDarkMode ? 'dark-map-tiles' : ''
     });
     (tileLayer as any).addTo(map);
     tileLayerRef.current = tileLayer;
@@ -144,6 +145,8 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       attribution,
       maxZoom: 18,
       regionName: mapLayer === 'default' ? 'browsing' : mapLayer,
+      // Apply dark tint to standard roadmap layers, but never to satellite/terrain
+      className: (isDarkMode && mapLayer !== 'satellite' && mapLayer !== 'terrain') ? 'dark-map-tiles' : ''
     });
     (newTileLayer as any).addTo(mapInstanceRef.current);
 

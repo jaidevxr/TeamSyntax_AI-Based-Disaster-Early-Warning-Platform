@@ -256,8 +256,8 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     setLoading(true);
 
     try {
-      // Use the centralized robust fetch from api.ts
-      const allFacilities = await fetchEmergencyFacilities({ lat, lng, name: '' }, 10000); // 10km radius
+      // Use the centralized robust fetch from api.ts with increased radius (25km) to include more data
+      const allFacilities = await fetchEmergencyFacilities({ lat, lng, name: '' }, 25000); // 25km radius
 
       // Map API types 'hospital', 'police', 'fire_station' to our EmergencyService type
       // And filter based on selectedTypes
@@ -324,7 +324,8 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     const tileLayer = createOfflineTileLayer(getTileUrl(), {
       attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
       maxZoom: 18,
-      regionName: 'emergency'
+      regionName: 'emergency',
+      className: isDarkMode ? 'dark-map-tiles' : ''
     });
     (tileLayer as any).addTo(map);
     tileLayerRef.current = tileLayer as L.TileLayer;
@@ -372,7 +373,8 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     const newTileLayer = createOfflineTileLayer(getTileUrl(), {
       attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
       maxZoom: 18,
-      regionName: 'emergency'
+      regionName: 'emergency',
+      className: isDarkMode ? 'dark-map-tiles' : ''
     });
     (newTileLayer as any).addTo(mapInstanceRef.current);
 

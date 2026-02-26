@@ -215,6 +215,11 @@ All colors MUST be HSL.
     background: hsl(var(--background));
   }
 
+  /* Dark mode filter for map tiles (preserves India borders from Gmaps while matching theme) */
+  .dark-map-tiles {
+    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+  }
+
   /* Animations */
   @keyframes pulse {
     0%, 100% {

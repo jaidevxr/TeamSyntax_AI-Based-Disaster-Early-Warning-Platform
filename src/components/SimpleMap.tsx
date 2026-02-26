@@ -51,7 +51,8 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
     };
 
     const tileLayer = L.tileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© Google Maps'
+      attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
+      className: isDarkMode ? 'dark-map-tiles' : ''
     }).addTo(leafletMap.current);
     tileLayerRef.current = tileLayer;
 
@@ -96,7 +97,8 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
     };
 
     const newTileLayer = L.tileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© Google Maps'
+      attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
+      className: isDarkMode ? 'dark-map-tiles' : ''
     }).addTo(leafletMap.current);
 
     tileLayerRef.current = newTileLayer;
