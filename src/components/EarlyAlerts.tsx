@@ -208,49 +208,49 @@ const PHASES: {
   icon: React.ReactNode;
   source: string;
 }[] = [
-    {
-      key: "fetching_weather",
-      label: "Fetching weather data",
-      icon: <Thermometer className="h-4 w-4" />,
-      source: "Open-Meteo API",
-    },
-    {
-      key: "fetching_precipitation",
-      label: "Fetching precipitation forecast",
-      icon: <Droplets className="h-4 w-4" />,
-      source: "Open-Meteo API",
-    },
-    {
-      key: "fetching_seismic",
-      label: "Querying seismic activity",
-      icon: <Mountain className="h-4 w-4" />,
-      source: "USGS FDSNWS",
-    },
-    {
-      key: "fetching_gdacs",
-      label: "Checking global alerts",
-      icon: <AlertTriangle className="h-4 w-4" />,
-      source: "GDACS",
-    },
-    {
-      key: "fetching_aqi",
-      label: "Measuring air quality",
-      icon: <Leaf className="h-4 w-4" />,
-      source: "Open-Meteo AQI",
-    },
-    {
-      key: "fetching_imd",
-      label: "Reading IMD bulletins",
-      icon: <Bell className="h-4 w-4" />,
-      source: "IMD RSS",
-    },
-    {
-      key: "analyzing",
-      label: "Running detection algorithms",
-      icon: <Zap className="h-4 w-4" />,
-      source: "IMD + Steadman + Bath's Law",
-    },
-  ];
+  {
+    key: "fetching_weather",
+    label: "Fetching weather data",
+    icon: <Thermometer className="h-4 w-4" />,
+    source: "Open-Meteo API",
+  },
+  {
+    key: "fetching_precipitation",
+    label: "Fetching precipitation forecast",
+    icon: <Droplets className="h-4 w-4" />,
+    source: "Open-Meteo API",
+  },
+  {
+    key: "fetching_seismic",
+    label: "Querying seismic activity",
+    icon: <Mountain className="h-4 w-4" />,
+    source: "USGS FDSNWS",
+  },
+  {
+    key: "fetching_gdacs",
+    label: "Checking global alerts",
+    icon: <AlertTriangle className="h-4 w-4" />,
+    source: "GDACS",
+  },
+  {
+    key: "fetching_aqi",
+    label: "Measuring air quality",
+    icon: <Leaf className="h-4 w-4" />,
+    source: "Open-Meteo AQI",
+  },
+  {
+    key: "fetching_imd",
+    label: "Reading IMD bulletins",
+    icon: <Bell className="h-4 w-4" />,
+    source: "IMD RSS",
+  },
+  {
+    key: "analyzing",
+    label: "Running detection algorithms",
+    icon: <Zap className="h-4 w-4" />,
+    source: "IMD + Steadman + Bath's Law",
+  },
+];
 
 const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
   const [alerts, setAlerts] = useState<EarlyAlert[]>([]);
@@ -842,12 +842,13 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
               return (
                 <div
                   key={phase.key}
-                  className={`flex items-center gap-2.5 py-1.5 px-2 rounded-md transition-all duration-300 ${isActive
+                  className={`flex items-center gap-2.5 py-1.5 px-2 rounded-md transition-all duration-300 ${
+                    isActive
                       ? "bg-primary/10 border border-primary/20"
                       : isCompleted
                         ? "opacity-70"
                         : "opacity-40"
-                    }`}
+                  }`}
                 >
                   {isCompleted ? (
                     <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
@@ -1082,7 +1083,9 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
                           <span className="font-mono">
                             {typeof value === "number"
                               ? (value as number).toFixed(1)
-                              : (value as string)}
+                              : typeof value === "object" && value !== null
+                                ? `${(value as any).contribution.toFixed(1)}%`
+                                : String(value)}
                           </span>
                         </div>
                       ),
