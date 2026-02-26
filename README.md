@@ -1,3 +1,25 @@
+## Team Name  
+**TeamSyntax**
+
+## Project Name  
+**AI-Based Disaster Early Warning Platform**
+
+## Problem Statement 5 
+Many regions in India face delayed or missing disaster alerts for floods, earthquakes, cyclones, and extreme weather. Existing systems are fragmented, reactive, and often fail in low-network or offline conditions.  
+
+This project aims to develop an AI-based disaster early warning and response platform that predicts potential disasters using real-time data, integrates multiple disaster data sources into one unified dashboard, and provides timely alerts and emergency guidance even in low-network or offline environments.
+
+## Track 1
+**AI, Data & Smart Systems**
+
+## Team Members & Roles  
+
+| Name | Role |
+|------|------|
+| Jaidev Yadav | Integration & Testing |
+| Khushi Sharma | Frontend Development |
+| Madhvi Mishra | UI/UX & Research |
+| Kirti Singh | Backend & AI IntegrationData |
 # AI-Based Disaster Early Warning Platform
 
 A state-of-the-art, AI-powered command center designed for predicting, detecting, and managing natural and man-made disasters. The platform aggregates real-time environmental data (weather, seismic, atmospheric) and translates it into actionable intelligence through a massive multi-factorial risk engine. Key features include highly localized visualizations on top of authentic political boundaries, a context-aware AI Copilot for crisis response, and a robust architecture capable of processing thousands of data nodes concurrently.
@@ -8,79 +30,7 @@ A state-of-the-art, AI-powered command center designed for predicting, detecting
 
 The platform utilizes a highly modular **Client-Edge-Database** architecture. The frontend is entirely decoupled from external services until initialization, where it concurrently aggregates data across multiple third-party environmental feeds and processes risk metrics on the client-side to minimize latency, falling back to edge infrastructure only for LLM (AI Copilot) integrations.
 
-```mermaid
-graph TD
-    %% Beautiful Theming
-    classDef frontend fill:#1e293b,stroke:#3b82f6,stroke-width:3px,color:#e2e8f0,shape:rect
-    classDef edge fill:#0f172a,stroke:#8b5cf6,stroke-width:2px,color:#e2e8f0
-    classDef logic fill:#334155,stroke:#10b981,stroke-width:2px,color:#e2e8f0
-    classDef db fill:#475569,stroke:#f59e0b,stroke-width:2px,color:#fff
-    classDef external fill:#1e1b4b,stroke:#ec4899,stroke-width:2px,stroke-dasharray: 4 4,color:#fce7f3
 
-    subgraph User Interface [🖥️ Presentation Layer]
-        UI([Web Dashboard<br/>React + Tailwind]):::frontend
-        Map([Interactive GIS Maps<br/>Leaflet + Google Maps gl=IN]):::frontend
-        Chat([AI Copilot Interface<br/>Context-Aware Chat]):::frontend
-    end
-
-    subgraph Middleware & Integration [🌐 Connectivity Layer]
-        Auth([Supabase Auth<br/>JWT Sessions]):::edge
-        Edge([Supabase Edge Functions<br/>Deno Runtime]):::edge
-        RestFetch([Client-Side Parallel Fetcher<br/>REST Aggregation]):::edge
-    end
-
-    subgraph Business Logic [⚙️ Core Engines]
-        Risk(Multi-Factor Risk Matrix<br/>Temperature, AQI, Geodata):::logic
-        AI(AI Prediction Engine<br/>Gemini / LLM Integration):::logic
-        Alerts(Early Warning System<br/>Pattern Recognition):::logic
-    end
-
-    subgraph Data Persistence [💾 Data Layer]
-        SupabaseDB[(PostgreSQL<br/>Vector Extensions)]:::db
-        Cache[(IndexedDB<br/>Offline Tile Cache)]:::db
-    end
-
-    subgraph External Sensors [🌍 Live Sensor Feeds]
-        Meteo[[Open-Meteo<br/>Live Weather]]:::external
-        AQI[[World Air Quality Index]]:::external
-        USGS[[USGS FDSNWS<br/>Seismic Data]]:::external
-        OSM[[Overpass API<br/>Emergency Facilities]]:::external
-    end
-
-    %% User interactions
-    UI <--> Map
-    UI <--> Chat
-    UI --> Auth
-
-    %% Map and Copilot networking
-    Map -->|Batch API Requests| RestFetch
-    Chat -->|Context & Chat History| Edge
-
-    %% Core Data pipelines
-    RestFetch -->|Calculates Risk| Risk
-    Risk --> Alerts
-    Edge -->|Prompt Engineering| AI
-
-    %% DB Storage
-    Auth --> SupabaseDB
-    AI --> SupabaseDB
-    Alerts --> SupabaseDB
-    Map --> Cache
-
-    %% Sensor integrations
-    RestFetch -->|Bulk Coordinates| Meteo
-    RestFetch -->|Batched REST| AQI
-    RestFetch -->|Event Polling| USGS
-    RestFetch -->|Node Queries| OSM
-
-    style User Interface fill:transparent,stroke:#3b82f6,stroke-width:2px,stroke-dasharray: 5 5
-    style Middleware & Integration fill:transparent,stroke:#8b5cf6,stroke-width:2px,stroke-dasharray: 5 5
-    style Business Logic fill:transparent,stroke:#10b981,stroke-width:2px,stroke-dasharray: 5 5
-    style Data Persistence fill:transparent,stroke:#f59e0b,stroke-width:2px,stroke-dasharray: 5 5
-    style External Sensors fill:transparent,stroke:#ec4899,stroke-width:2px,stroke-dasharray: 5 5
-```
-
----
 
 ## 🤖 Early Prediction & Early Warning Engine (Working Architecture)
 
