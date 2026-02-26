@@ -445,36 +445,46 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       let loadedCount = 0;
 
       try {
+        // Fetch all temperatures in a single bulk API request to prevent 429 Too Many Requests
+        const lats = cities.map(c => c.lat).join(',');
+        const lngs = cities.map(c => c.lng).join(',');
+
+        let meteoData: any[] = [];
+        try {
+          const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&current=temperature_2m&timezone=auto`, { signal });
+          if (wRes.ok) {
+            const d = await wRes.json();
+            meteoData = Array.isArray(d) ? d : [d];
+          }
+        } catch (e) {
+          console.error("Failed to fetch bulk weather array", e);
+        }
+
         for (let i = 0; i < cities.length; i += BATCH_SIZE) {
           if (signal.aborted) break;
 
           const batch = cities.slice(i, i + BATCH_SIZE);
 
           await Promise.allSettled(
-            batch.map(async ({ lat, lng }) => {
+            batch.map(async (city, idx) => {
+              const cityIndex = i + idx;
+              const { lat, lng } = city;
               try {
-                // Fetch temperature + AQI in parallel for each city
-                const [weatherRes, aqiRes] = await Promise.allSettled([
-                  fetch(
-                    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m&timezone=auto`,
-                    { signal }
-                  ),
-                  fetch(
-                    `https://api.waqi.info/feed/geo:${lat};${lng}/?token=d148749b9e7bc2b5013c0c4cb1b3c9942197fa95`,
-                    { signal }
-                  ),
-                ]);
-
+                // Process Temperature from pre-fetched bulk array
                 let temp: number | null = null;
-                let aqi: number | null = null;
-
-                if (weatherRes.status === 'fulfilled' && weatherRes.value.ok) {
-                  const d = await weatherRes.value.json();
-                  if (d.current?.temperature_2m != null) temp = d.current.temperature_2m;
+                if (meteoData[cityIndex]?.current?.temperature_2m != null) {
+                  temp = meteoData[cityIndex].current.temperature_2m;
                 }
 
-                if (aqiRes.status === 'fulfilled' && aqiRes.value.ok) {
-                  const d = await aqiRes.value.json();
+                // Fetch AQI individually since WAQI doesn't support bulk lat/lng natively
+                let aqi: number | null = null;
+                const aqiRes = await fetch(
+                  `https://api.waqi.info/feed/geo:${lat};${lng}/?token=d148749b9e7bc2b5013c0c4cb1b3c9942197fa95`,
+                  { signal }
+                );
+
+                if (aqiRes.ok) {
+                  const d = await aqiRes.json();
                   if (d.status === 'ok' && d.data?.aqi) aqi = d.data.aqi;
                 }
 
@@ -486,6 +496,9 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
               }
             })
           );
+
+          // Give WAQI a brief breather between batches to prevent secondary 429s there
+          await new Promise(resolve => setTimeout(resolve, 300));
 
           loadedCount = Math.min(i + BATCH_SIZE, totalCities);
           setLoadingProgress({ current: loadedCount, total: totalCities });
