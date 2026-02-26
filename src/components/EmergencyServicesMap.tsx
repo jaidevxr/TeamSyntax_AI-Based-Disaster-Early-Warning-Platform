@@ -330,6 +330,23 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     (tileLayer as any).addTo(map);
     tileLayerRef.current = tileLayer as L.TileLayer;
 
+    // Load state boundaries to forcefully correct OSM visuals
+    fetch('https://raw.githubusercontent.com/Subhash9325/GeoJson-Data-of-Indian-States/master/Indian_States')
+      .then(response => response.json())
+      .then(geojsonData => {
+        if (!mapInstanceRef.current) return;
+        L.geoJSON(geojsonData, {
+          style: {
+            color: isDarkMode ? '#10b981' : '#059669', // Primary green
+            weight: 2,
+            opacity: 0.6,
+            fillOpacity: 0.05,
+            fillColor: isDarkMode ? '#10b981' : '#059669'
+          }
+        }).addTo(mapInstanceRef.current);
+      })
+      .catch(error => console.error('Error loading state boundaries:', error));
+
     return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
