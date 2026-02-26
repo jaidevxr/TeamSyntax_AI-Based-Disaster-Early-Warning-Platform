@@ -82,6 +82,72 @@ graph TD
 
 ---
 
+## 🤖 Early Prediction & Early Warning Engine (Working Architecture)
+
+The Early Prediction system is the intelligence core of the platform. It merges real-time quantitative telemetry (sensors) with qualitative analytical pattern recognition (AI) to generate actionable warnings *before* a disaster breaches safety thresholds. 
+
+```mermaid
+sequenceDiagram
+    autonumber
+    
+    %% Beautiful Theming
+    box rgb(30, 41, 59) External Sensor Arrays
+        participant IMD as 📡 IMD RSS (Cyclones)
+        participant Meteo as 🌦️ Open-Meteo API
+        participant USGS as 🌍 USGS FDSNWS
+    end
+    
+    box rgb(15, 23, 42) Edge Processing & Middleware
+        participant Aggregator as 🔄 Data Poller & Normalizer
+        participant Engine as ⚙️ Risk Matrix Engine
+    end
+    
+    box rgb(51, 65, 85) AI & Presentation
+        participant AI as 🧠 LLM Prediction Core (Gemini)
+        participant UI as 🖥️ Command Dashboard
+    end
+
+    %% The Flow
+    Note over IMD, USGS: 1. Continuous Live Telemetry
+    loop Every 5 Minutes
+        Meteo-->>Aggregator: Bulk Array: Temp, Humidity, Wind
+        USGS-->>Aggregator: GeoJSON: Seismic Activity (Lat/Lng/Mag)
+        IMD-->>Aggregator: XML XML: Tropical Cyclone Bulletins
+    end
+
+    Note over Aggregator, Engine: 2. Normalization & Threat Scoring
+    Aggregator->>Engine: Push standardized metrics payload
+    
+    rect rgb(71, 85, 105)
+        Note right of Engine: Multi-Factor Threat Algorithms
+        Engine->>Engine: Calculate Heatwave Risk (Temp > 40°C + Humidity)
+        Engine->>Engine: Calculate Flood Risk (Sustained Heavy Precipitation)
+        Engine->>Engine: Calculate Cyclone Proximity (Parsing RSS Lat/Lng vectors)
+    end
+
+    alt Threat Threshold Exceeded (>65% Risk)
+        Note over Engine, AI: 3. AI Predictive Analysis Triggered
+        Engine->>AI: Transmit Anomaly Context (JSON)
+        Note left of AI: "Heavy rain sustained for 6hrs in Zone B.<br/>Soil saturation metric implies 74%<br/>Flash Flood probability. Generate advisory."
+        
+        AI-->>Engine: AI Output: "IMMINENT FLASH FLOOD: Evacuate Low-Lying Zones"
+        
+        Note over Engine, UI: 4. Visual Warning Deployment
+        Engine->>UI: Broadcast Early Warning Alert
+        UI->>UI: Render pulsing UI map markers
+        UI->>UI: PING! Trigger Audio/Visual Dashboard Alarms
+    else Normal Conditions Target (<45% Risk)
+        Engine-->>UI: Update gentle heatmap gradients (Green/Yellow)
+    end
+```
+
+### Components of the Prediction Flow:
+1. **The Poller (Data Intake):** A concurrent `setInterval` loop constantly fetches bulk telemetry. It natively parses completely different formats (e.g., converting the India Meteorological Department's archaic XML RSS feeds into structured JSON).
+2. **The Risk Matrix (Algorithmic Logic):** Hard-coded statistical thresholds. It prevents the AI from being overrun with mundane data by acting as a mathematical gatekeeper. It specifically looks for *compound* risks (e.g., High Heat + Low Wind = Severe AQI Warning).
+3. **The AI Core (Cognitive Generation):** Only engaged when the Risk Matrix fires a threshold breach. Complex anomalies are structured into strict prompt templates and fired to the external LLM to generate human-readable, highly specific evacuation and preparation logistics.
+
+---
+
 ## ⚙️ System Workflow
 
 1. **Initialization & Authentication**:
