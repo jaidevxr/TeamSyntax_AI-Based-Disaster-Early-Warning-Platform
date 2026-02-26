@@ -167,20 +167,7 @@ const renderMarkdown = (text: string): React.ReactNode[] => {
   return nodes;
 };
 
-interface EarlyAlert {
-  id: string;
-  type: string;
-  severity: "advisory" | "watch" | "warning" | "emergency";
-  title: string;
-  description: string;
-  source: string;
-  algorithm: string;
-  dataPoints: Record<string, any>;
-  location: { lat: number; lng: number; name?: string };
-  issuedAt: string;
-  expiresAt: string;
-  confidence: number;
-}
+import { EarlyAlert, fetchEarlyAlertsLocal } from "../utils/earlyAlertsLogic";
 
 interface AlertMetadata {
   sources: string[];
@@ -417,12 +404,11 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
     const { lat, lng } = userLocation;
 
     try {
-      const { data, error } = await supabase.functions.invoke("early-alerts", {
-        body: { lat, lng },
-      });
+      // Bypass Supabase Edge Function due to network timeouts
+      // Run the ML models locally using our port
+      const data = await fetchEarlyAlertsLocal(lat, lng);
 
-      if (error) throw error;
-      if (!data) throw new Error("No data received from edge function");
+      if (!data) throw new Error("No data received from local ML function");
 
       const generatedAlerts = data.alerts || [];
 
@@ -451,14 +437,17 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
       } else {
         setAiBrief(null);
       }
-    } catch (err) {
-      console.error("Failed to generate early alerts via edge function:", err);
+    } catch (err: any) {
+      console.error(
+        "Failed to generate early alerts via local ML function:",
+        err,
+      );
       fetchDoneRef.current = true;
       if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
       setCurrentPhase("done");
       setCalcProgress(100);
       setAiBrief(
-        "Failed to load environment data. Ensure a stable internet connection.",
+        "Failed to load environment data. Ensure a stable internet connection or check your API keys.",
       );
     } finally {
       setLoading(false);
