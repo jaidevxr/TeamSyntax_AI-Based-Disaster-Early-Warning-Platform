@@ -43,15 +43,12 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
 
     // Add tile layer with dark mode support
     const getTileUrl = () => {
-      // Using Google Maps (gl=IN) to strictly enforce correct Indian political borders
-      if (isDarkMode) {
-        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-      }
+      // Using Google Maps (gl=IN) to strictly enforce correct Indian political borders in both modes
       return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const tileLayer = L.tileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
+      attribution: '© Google Maps',
       className: isDarkMode ? 'dark-map-tiles' : ''
     }).addTo(leafletMap.current);
     tileLayerRef.current = tileLayer;
@@ -90,14 +87,11 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
     leafletMap.current.removeLayer(tileLayerRef.current);
 
     const getTileUrl = () => {
-      if (isDarkMode) {
-        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-      }
       return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const newTileLayer = L.tileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
+      attribution: '© Google Maps',
       className: isDarkMode ? 'dark-map-tiles' : ''
     }).addTo(leafletMap.current);
 

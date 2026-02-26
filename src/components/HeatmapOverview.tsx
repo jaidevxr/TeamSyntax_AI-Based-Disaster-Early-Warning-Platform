@@ -62,14 +62,11 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     mapInstanceRef.current = map;
 
     const getTileUrl = () => {
-      if (isDarkMode) {
-        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-      }
       return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const tileLayer = createOfflineTileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
+      attribution: '© Google Maps',
       maxZoom: 18,
       regionName: 'browsing',
       className: isDarkMode ? 'dark-map-tiles' : ''
@@ -119,26 +116,16 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     mapInstanceRef.current.removeLayer(tileLayerRef.current);
 
     let tileUrl = '';
-    let attribution = '';
+    let attribution = '© Google Maps';
 
     if (mapLayer === 'satellite') {
-      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      attribution = '© Esri';
+      tileUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&gl=IN';
     } else if (mapLayer === 'terrain') {
-      tileUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-      attribution = '© OpenTopoMap';
+      tileUrl = 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}&gl=IN';
     } else if (mapLayer === 'streets') {
-      tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      attribution = '© OpenStreetMap contributors';
+      tileUrl = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     } else {
-      // Default layer respects dark mode
-      if (isDarkMode) {
-        tileUrl = 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-        attribution = '© CartoDB';
-      } else {
-        tileUrl = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
-        attribution = '© Google Maps';
-      }
+      tileUrl = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     }
 
     const newTileLayer = createOfflineTileLayer(tileUrl, {

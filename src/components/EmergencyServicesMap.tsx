@@ -315,14 +315,11 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     mapInstanceRef.current = map;
 
     const getTileUrl = () => {
-      if (isDarkMode) {
-        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-      }
       return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const tileLayer = createOfflineTileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
+      attribution: '© Google Maps',
       maxZoom: 18,
       regionName: 'emergency',
       className: isDarkMode ? 'dark-map-tiles' : ''
@@ -364,14 +361,11 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     mapInstanceRef.current.removeLayer(tileLayerRef.current);
 
     const getTileUrl = () => {
-      if (isDarkMode) {
-        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-      }
       return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const newTileLayer = createOfflineTileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
+      attribution: '© Google Maps',
       maxZoom: 18,
       regionName: 'emergency',
       className: isDarkMode ? 'dark-map-tiles' : ''
