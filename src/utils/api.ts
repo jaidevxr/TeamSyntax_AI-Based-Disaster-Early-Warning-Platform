@@ -224,8 +224,8 @@ export const fetchDisasterData = async (): Promise<DisasterEvent[]> => {
     // Try direct first, then CORS proxy
     const gdacsUrls = [
       `https://www.gdacs.org${gdacsPath}`,
-      `https://corsproxy.io/?${encodeURIComponent(`https://www.gdacs.org${gdacsPath}`)}`,
       `https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.gdacs.org${gdacsPath}`)}`,
+      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://www.gdacs.org${gdacsPath}`)}`,
     ];
 
     let gdacsEvents: any[] = [];
@@ -566,17 +566,23 @@ export const fetchEmergencyFacilities = async (location: Location, radius: numbe
     };
 
     let data: any;
-    try {
-      data = await new Promise((resolve, reject) => {
-        let rejections = 0;
-        OVERPASS_MIRRORS.map(fetchMirror).forEach(p =>
-          p.then(resolve).catch(() => {
-            if (++rejections === OVERPASS_MIRRORS.length) reject(new Error('all failed'));
-          })
-        );
-      });
-    } catch {
-      throw new Error('All Overpass mirrors failed.');
+    let lastError = null;
+
+    // Try mirrors sequentially to avoid 429 Too Many Requests from racing them all
+    const shuffledMirrors = [...OVERPASS_MIRRORS].sort(() => 0.5 - Math.random());
+
+    for (const mirror of shuffledMirrors) {
+      try {
+        data = await fetchMirror(mirror);
+        break; // Success
+      } catch (err) {
+        lastError = err;
+        console.warn(`Overpass mirror ${mirror} failed, trying next...`);
+      }
+    }
+
+    if (!data) {
+      throw lastError || new Error('All Overpass mirrors failed.');
     }
 
     const elements = data.elements || [];

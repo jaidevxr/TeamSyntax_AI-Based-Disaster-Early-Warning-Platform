@@ -469,12 +469,14 @@ export async function fetchEarlyAlertsLocal(
 
   // 4. GDACS (Wrapped in CORS proxy for browser access)
   const fetchGdacs = async () => {
+    const targetUrl = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP";
     const res = await fetch(
-      "https://corsproxy.io/?https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP",
+      `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
       { signal: AbortSignal.timeout(12000) },
     );
     if (!res.ok) return [];
-    const data = await res.json();
+    const wrapper = await res.json();
+    const data = JSON.parse(wrapper.contents);
     const nearby = (data.features || [])
       .filter((f: any) => {
         const [eLng, eLat] = f.geometry?.coordinates || [0, 0];
