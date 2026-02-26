@@ -315,14 +315,17 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     mapInstanceRef.current = map;
 
     const getTileUrl = () => {
-      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
+      if (isDarkMode) {
+        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
+      }
+      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     };
 
     const tileLayer = createOfflineTileLayer(getTileUrl(), {
-      attribution: '© Google Maps',
+      attribution: isDarkMode ? '© CartoDB' : '© OpenStreetMap contributors',
       maxZoom: 18,
       regionName: 'emergency',
-      className: isDarkMode ? 'dark-map-tiles' : ''
+      className: ''
     });
     (tileLayer as any).addTo(map);
     tileLayerRef.current = tileLayer as L.TileLayer;
@@ -361,14 +364,17 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     mapInstanceRef.current.removeLayer(tileLayerRef.current);
 
     const getTileUrl = () => {
-      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
+      if (isDarkMode) {
+        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
+      }
+      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     };
 
     const newTileLayer = createOfflineTileLayer(getTileUrl(), {
-      attribution: '© Google Maps',
+      attribution: isDarkMode ? '© CartoDB' : '© OpenStreetMap contributors',
       maxZoom: 18,
       regionName: 'emergency',
-      className: isDarkMode ? 'dark-map-tiles' : ''
+      className: ''
     });
     (newTileLayer as any).addTo(mapInstanceRef.current);
 
