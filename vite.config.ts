@@ -13,6 +13,10 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192x192.png', 'icon-512x512.png'],
+      // Override the strict 2MB default sizing limit to allow Vercel to cache heavy WASM pipelines offline
+      workbox: {
+        maximumFileSizeToCacheInBytes: 35000000 // 35 MiB
+      },
       manifest: {
         name: 'Saarthi - Disaster Management',
         short_name: 'Saarthi',
