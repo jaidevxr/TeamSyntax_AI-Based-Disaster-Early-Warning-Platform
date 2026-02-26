@@ -122,14 +122,14 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     let attribution = '';
 
     if (mapLayer === 'satellite') {
-      tileUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&gl=IN';
-      attribution = '© Google Maps';
+      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      attribution = '© Esri';
     } else if (mapLayer === 'terrain') {
-      tileUrl = 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}&gl=IN';
-      attribution = '© Google Maps';
+      tileUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
+      attribution = '© OpenTopoMap';
     } else if (mapLayer === 'streets') {
-      tileUrl = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
-      attribution = '© Google Maps';
+      tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      attribution = '© OpenStreetMap contributors';
     } else {
       // Default layer respects dark mode
       if (isDarkMode) {
