@@ -11,13 +11,13 @@ export class OfflineTileLayer extends L.TileLayer {
 
   createTile(coords: L.Coords, done: L.DoneCallback): HTMLElement {
     const tile = document.createElement('img');
-    
+
     L.DomEvent.on(tile, 'load', L.bind(() => done(undefined, tile), this));
     L.DomEvent.on(tile, 'error', L.bind(() => done(new Error('Tile failed to load'), tile), this));
 
     const url = (this as any).getTileUrl(coords);
     this.loadTile(tile, url, coords);
-    
+
     return tile;
   }
 
@@ -25,7 +25,7 @@ export class OfflineTileLayer extends L.TileLayer {
     try {
       // Try to get from cache first
       const cachedBlob = await getCachedTile(url);
-      
+
       if (cachedBlob) {
         // Use cached tile
         tile.src = URL.createObjectURL(cachedBlob);
@@ -37,12 +37,12 @@ export class OfflineTileLayer extends L.TileLayer {
         const response = await fetch(url);
         if (response.ok) {
           const blob = await response.blob();
-          
+
           // Cache the tile for future use (in background, don't block rendering)
-          cacheTile(url, blob, this.regionName).catch(err => 
+          cacheTile(url, blob, this.regionName).catch(err =>
             console.error('Failed to cache tile:', err)
           );
-          
+
           tile.src = URL.createObjectURL(blob);
         } else {
           throw new Error('Network request failed');
@@ -52,9 +52,15 @@ export class OfflineTileLayer extends L.TileLayer {
         tile.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAQAAAD2e2DtAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAAmJLR0QAAKqNIzIAAAAJcEhZcwAADsQAAA7EAZUrDhsAAA';
       }
     } catch (error) {
-      console.error('Error loading tile:', error);
-      // Use placeholder on error
-      tile.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAQAAAD2e2DtAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAAmJLR0QAAKqNIzIAAAAJcEhZcwAADsQAAA7EAZUrDhsAAA';
+      // If fetch fails (usually CORS policy blocking programmatic access to map tiles like Google Maps),
+      // fallback to loading the image directly via the src attribute. This bypasses the CORS block
+      // so the map still works perfectly online, but prevents us from caching the tile for offline use.
+      if (navigator.onLine) {
+        tile.src = url;
+      } else {
+        // Use placeholder on true offline error
+        tile.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAQAAAD2e2DtAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAAAmJLR0QAAKqNIzIAAAAJcEhZcwAADsQAAA7EAZUrDhsAAA';
+      }
     }
   }
 }
