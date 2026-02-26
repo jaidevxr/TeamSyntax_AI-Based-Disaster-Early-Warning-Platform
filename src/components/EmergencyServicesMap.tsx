@@ -315,37 +315,18 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     mapInstanceRef.current = map;
 
     const getTileUrl = () => {
-      if (isDarkMode) {
-        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-      }
-      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      // Always use Google Maps (gl=IN) to natively force correct Indian boundaries
+      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const tileLayer = createOfflineTileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© OpenStreetMap contributors',
+      attribution: '© Google Maps',
       maxZoom: 18,
       regionName: 'emergency',
-      className: ''
+      className: isDarkMode ? 'dark-map-tiles' : '' // Apply new refined filter
     });
     (tileLayer as any).addTo(map);
     tileLayerRef.current = tileLayer as L.TileLayer;
-
-    // Load state boundaries to forcefully correct OSM visuals
-    fetch('https://raw.githubusercontent.com/Subhash9325/GeoJson-Data-of-Indian-States/master/Indian_States')
-      .then(response => response.json())
-      .then(geojsonData => {
-        if (!mapInstanceRef.current) return;
-        L.geoJSON(geojsonData, {
-          style: {
-            color: isDarkMode ? '#10b981' : '#059669', // Primary green
-            weight: 2,
-            opacity: 0.6,
-            fillOpacity: 0.05,
-            fillColor: isDarkMode ? '#10b981' : '#059669'
-          }
-        }).addTo(mapInstanceRef.current);
-      })
-      .catch(error => console.error('Error loading state boundaries:', error));
 
     return () => {
       if (mapInstanceRef.current) {
@@ -381,17 +362,14 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     mapInstanceRef.current.removeLayer(tileLayerRef.current);
 
     const getTileUrl = () => {
-      if (isDarkMode) {
-        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-      }
-      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const newTileLayer = createOfflineTileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© OpenStreetMap contributors',
+      attribution: '© Google Maps',
       maxZoom: 18,
       regionName: 'emergency',
-      className: ''
+      className: isDarkMode ? 'dark-map-tiles' : ''
     });
     (newTileLayer as any).addTo(mapInstanceRef.current);
 

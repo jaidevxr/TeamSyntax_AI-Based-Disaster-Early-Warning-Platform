@@ -51,13 +51,13 @@ All colors MUST be HSL.
     --ring: 142 50% 45%;
 
     --radius: 0.75rem;
-    
+
     /* Warm nature-inspired Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(142 50% 45%), hsl(142 55% 55%));
     --gradient-secondary: linear-gradient(135deg, hsl(35 30% 88%), hsl(160 40% 50%));
     --gradient-hero: linear-gradient(135deg, hsl(40 40% 94%), hsl(35 35% 90%));
     --gradient-card: linear-gradient(135deg, hsl(40 35% 96%), hsl(35 30% 92%));
-    
+
     /* Soft shadows with warm tint */
     --shadow-glow: 0 8px 32px -8px hsl(35 30% 50% / 0.2);
     --shadow-card: 0 4px 20px -4px hsl(30 20% 40% / 0.08);
@@ -110,18 +110,18 @@ All colors MUST be HSL.
     --border: 150 8% 22%;
     --input: 150 10% 16%;
     --ring: 142 65% 50%;
-    
+
     /* Dark nature gradients */
     --gradient-primary: linear-gradient(135deg, hsl(142 65% 50%), hsl(142 70% 60%));
     --gradient-secondary: linear-gradient(135deg, hsl(150 10% 18%), hsl(160 50% 45%));
     --gradient-hero: linear-gradient(135deg, hsl(150 15% 8%), hsl(150 12% 10%));
     --gradient-card: linear-gradient(135deg, hsl(150 12% 12%), hsl(150 10% 10%));
-    
+
     /* Dark nature shadows with green glow */
     --shadow-glow: 0 8px 32px -8px hsl(142 65% 50% / 0.4);
     --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.6);
     --shadow-elevated: 0 12px 40px -12px hsl(142 65% 50% / 0.2);
-    
+
     --sidebar-background: 150 15% 8%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 142 65% 50%;
@@ -142,8 +142,13 @@ All colors MUST be HSL.
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     @apply font-bold;
   }
@@ -158,16 +163,16 @@ All colors MUST be HSL.
     @apply bg-card/90 backdrop-blur-xl border border-border/60 rounded-xl;
     box-shadow: var(--shadow-elevated);
   }
-  
+
   /* Gradient backgrounds */
   .gradient-primary {
     background: var(--gradient-primary);
   }
-  
+
   .gradient-secondary {
     background: var(--gradient-secondary);
   }
-  
+
   .gradient-hero {
     background: var(--gradient-hero);
   }
@@ -192,17 +197,17 @@ All colors MUST be HSL.
   .transition-smooth {
     @apply transition-all duration-300 ease-out;
   }
-  
+
   /* Hover effects */
   .hover-lift {
     @apply transition-all duration-300;
   }
-  
+
   .hover-lift:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-elevated);
   }
-  
+
   .hover-glow:hover {
     box-shadow: var(--shadow-glow);
   }
@@ -217,116 +222,128 @@ All colors MUST be HSL.
 
   /* Dark mode filter for map tiles (preserves India borders from Gmaps while matching theme) */
   .dark-map-tiles {
-    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+    filter: invert(100%) hue-rotate(180deg) brightness(85%) contrast(120%) saturate(80%);
   }
 
   /* Animations */
   @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: scale(1);
       opacity: 1;
     }
+
     50% {
       transform: scale(1.2);
       opacity: 0.7;
     }
   }
-  
+
   @keyframes shimmer {
     0% {
       background-position: -200% 0;
     }
+
     100% {
       background-position: 200% 0;
     }
   }
-  
+
   @keyframes float {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateY(0);
     }
+
     50% {
       transform: translateY(-10px);
     }
   }
-  
+
   .animate-shimmer {
     animation: shimmer 3s infinite linear;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      hsl(var(--primary) / 0.1) 50%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg,
+        transparent 0%,
+        hsl(var(--primary) / 0.1) 50%,
+        transparent 100%);
     background-size: 200% 100%;
   }
-  
+
   .animate-float {
     animation: float 3s ease-in-out infinite;
   }
-  
+
   .animate-pulse-subtle {
     animation: pulse-subtle 3s ease-in-out infinite;
   }
-  
+
   @keyframes pulse-subtle {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
     }
+
     50% {
       opacity: 0.85;
     }
   }
-  
+
   @keyframes leaf-fall {
     0% {
       transform: translateY(0) translateX(0) rotate(0deg);
     }
+
     25% {
       transform: translateY(25vh) translateX(10px) rotate(90deg);
     }
+
     50% {
       transform: translateY(50vh) translateX(-10px) rotate(180deg);
     }
+
     75% {
       transform: translateY(75vh) translateX(5px) rotate(270deg);
     }
+
     100% {
       transform: translateY(110vh) translateX(0) rotate(360deg);
     }
   }
-  
+
   .animate-leaf-fall {
     animation: leaf-fall linear infinite;
   }
-  
+
   /* Custom scrollbar */
   .scrollbar-thin {
     scrollbar-width: thin;
   }
-  
+
   .scrollbar-thumb-primary\/20 {
     scrollbar-color: hsl(var(--primary) / 0.2) transparent;
   }
-  
+
   .scrollbar-track-transparent {
     scrollbar-width: thin;
   }
-  
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
-  
+
   ::-webkit-scrollbar-track {
     background: transparent;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--primary) / 0.2);
     border-radius: 10px;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--primary) / 0.3);
   }

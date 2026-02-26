@@ -62,17 +62,15 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     mapInstanceRef.current = map;
 
     const getTileUrl = () => {
-      if (isDarkMode) {
-        return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-      }
-      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      // Using Google Maps (gl=IN) to strictly enforce correct Indian political borders in both modes
+      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const tileLayer = createOfflineTileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB' : '© OpenStreetMap contributors',
+      attribution: '© Google Maps',
       maxZoom: 18,
       regionName: 'browsing',
-      className: '' // Remove dark-map-tiles filter for CartoDB since it's already dark
+      className: isDarkMode ? 'dark-map-tiles' : '' // Use refined CSS filter to make Google Maps look like dark mode
     });
     (tileLayer as any).addTo(map);
     tileLayerRef.current = tileLayer;
@@ -119,34 +117,24 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     mapInstanceRef.current.removeLayer(tileLayerRef.current);
 
     let tileUrl = '';
-    let attribution = '';
+    let attribution = '© Google Maps';
 
     if (mapLayer === 'satellite') {
-      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      attribution = '© Esri';
+      tileUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&gl=IN';
     } else if (mapLayer === 'terrain') {
-      tileUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-      attribution = '© OpenTopoMap';
+      tileUrl = 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}&gl=IN';
     } else if (mapLayer === 'streets') {
-      // Google Maps with strict Indian boundaries as an alternative "Official" street view
       tileUrl = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
-      attribution = '© Google Maps (Official India Boundaries)';
     } else {
-      if (isDarkMode) {
-        tileUrl = 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
-        attribution = '© CartoDB';
-      } else {
-        tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-        attribution = '© OpenStreetMap contributors';
-      }
+      tileUrl = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     }
 
     const newTileLayer = createOfflineTileLayer(tileUrl, {
       attribution,
       maxZoom: 18,
       regionName: mapLayer === 'default' ? 'browsing' : mapLayer,
-      // Apply dark tint only if it's the official google maps streets layer in dark mode
-      className: (isDarkMode && mapLayer === 'streets') ? 'dark-map-tiles' : ''
+      // Apply dark tint to standard roadmap layers, but never to satellite/terrain
+      className: (isDarkMode && mapLayer !== 'satellite' && mapLayer !== 'terrain') ? 'dark-map-tiles' : ''
     });
     (newTileLayer as any).addTo(mapInstanceRef.current);
 
