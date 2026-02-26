@@ -1,14 +1,14 @@
 export interface EarlyAlert {
   id: string;
   type:
-    | "flood"
-    | "earthquake"
-    | "extreme_weather"
-    | "cyclone"
-    | "heatwave"
-    | "cold_wave"
-    | "thunderstorm"
-    | "landslide";
+  | "flood"
+  | "earthquake"
+  | "extreme_weather"
+  | "cyclone"
+  | "heatwave"
+  | "cold_wave"
+  | "thunderstorm"
+  | "landslide";
   severity: "advisory" | "watch" | "warning" | "emergency";
   title: string;
   description: string;
@@ -141,7 +141,7 @@ function detectSeismicAnomaly(
   const baselineVariance =
     baselineWindow.length > 1
       ? baselineWindow.reduce((s, v) => s + (v - baselineMean) ** 2, 0) /
-        (baselineWindow.length - 1)
+      (baselineWindow.length - 1)
       : 1;
   const baselineStd = Math.sqrt(baselineVariance) || 0.5;
 
@@ -153,7 +153,7 @@ function detectSeismicAnomaly(
   const wVariance =
     wBaseline.length > 1
       ? wBaseline.reduce((s, v) => s + (v - wMean) ** 2, 0) /
-        (wBaseline.length - 1)
+      (wBaseline.length - 1)
       : 1;
   const wStd = Math.sqrt(wVariance) || 0.5;
 
@@ -375,8 +375,8 @@ function haversine(
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -467,11 +467,11 @@ export async function fetchEarlyAlertsLocal(
     };
   };
 
-  // 4. GDACS
+  // 4. GDACS (Wrapped in CORS proxy for browser access)
   const fetchGdacs = async () => {
     const res = await fetch(
-      "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP",
-      { signal: AbortSignal.timeout(8000) },
+      "https://corsproxy.io/?https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP",
+      { signal: AbortSignal.timeout(12000) },
     );
     if (!res.ok) return [];
     const data = await res.json();
