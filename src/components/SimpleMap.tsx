@@ -43,14 +43,15 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
 
     // Add tile layer with dark mode support
     const getTileUrl = () => {
+      // Using Google Maps (gl=IN) to strictly enforce correct Indian political borders
       if (isDarkMode) {
         return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
       }
-      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const tileLayer = L.tileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB © OpenStreetMap' : '© OpenStreetMap contributors'
+      attribution: isDarkMode ? '© CartoDB' : '© Google Maps'
     }).addTo(leafletMap.current);
     tileLayerRef.current = tileLayer;
 
@@ -91,11 +92,11 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       if (isDarkMode) {
         return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
       }
-      return 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const newTileLayer = L.tileLayer(getTileUrl(), {
-      attribution: isDarkMode ? '© CartoDB © OpenStreetMap' : '© OpenStreetMap contributors'
+      attribution: isDarkMode ? '© CartoDB' : '© Google Maps'
     }).addTo(leafletMap.current);
 
     tileLayerRef.current = newTileLayer;
@@ -149,8 +150,8 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
       };
 
       const config = iconConfig[disaster.type];
-      const severityColor = disaster.severity === 'high' ? '#dc2626' : 
-                           disaster.severity === 'medium' ? '#f59e0b' : '#16a34a';
+      const severityColor = disaster.severity === 'high' ? '#dc2626' :
+        disaster.severity === 'medium' ? '#f59e0b' : '#16a34a';
 
       const disasterIcon = L.divIcon({
         html: `
@@ -171,10 +172,9 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
           <div class="w-64 p-3 space-y-3">
             <div class="flex items-start justify-between">
               <h3 class="font-semibold text-sm">${disaster.title}</h3>
-              <span class="text-xs px-2 py-1 rounded-full ${
-                disaster.severity === 'high' ? 'bg-red-100 text-red-800' :
-                disaster.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-              }">${disaster.severity}</span>
+              <span class="text-xs px-2 py-1 rounded-full ${disaster.severity === 'high' ? 'bg-red-100 text-red-800' :
+            disaster.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+          }">${disaster.severity}</span>
             </div>
             <p class="text-sm text-gray-600">${disaster.description}</p>
             ${disaster.magnitude ? `<div class="text-xs"><span class="font-medium">Magnitude:</span> ${disaster.magnitude}</div>` : ''}
@@ -229,7 +229,7 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
   return (
     <div className="h-full w-full relative">
       <div ref={mapRef} className="h-full w-full rounded-2xl" />
-      
+
       {/* Map legend */}
       <Card className="absolute bottom-4 right-4 glass border-border/20 z-[1000]">
         <div className="p-3 space-y-2">

@@ -65,11 +65,11 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       if (isDarkMode) {
         return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
       }
-      return 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
+      return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
     };
 
     const tileLayer = createOfflineTileLayer(getTileUrl(), {
-      attribution: '© CartoDB © OpenStreetMap',
+      attribution: isDarkMode ? '© CartoDB' : '© Google Maps',
       maxZoom: 18,
       regionName: 'browsing',
     });
@@ -121,22 +121,23 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     let attribution = '';
 
     if (mapLayer === 'satellite') {
-      tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      attribution = '© Esri';
+      tileUrl = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&gl=IN';
+      attribution = '© Google Maps';
     } else if (mapLayer === 'terrain') {
-      tileUrl = 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png';
-      attribution = '© OpenTopoMap';
+      tileUrl = 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}&gl=IN';
+      attribution = '© Google Maps';
     } else if (mapLayer === 'streets') {
-      tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      attribution = '© OpenStreetMap contributors';
+      tileUrl = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
+      attribution = '© Google Maps';
     } else {
       // Default layer respects dark mode
       if (isDarkMode) {
         tileUrl = 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png';
+        attribution = '© CartoDB';
       } else {
-        tileUrl = 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
+        tileUrl = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&gl=IN';
+        attribution = '© Google Maps';
       }
-      attribution = '© CartoDB © OpenStreetMap';
     }
 
     const newTileLayer = createOfflineTileLayer(tileUrl, {
