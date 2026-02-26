@@ -8,69 +8,41 @@ export default defineConfig(({ mode }) => ({
     host: "::",
     port: 8080,
   },
-
   plugins: [
     react(),
-
     VitePWA({
-      registerType: "autoUpdate",
-      includeAssets: ["icon-192x192.png", "icon-512x512.png"],
-
-      workbox: {
-        // 🔥 Increase default 2MB limit
-        maximumFileSizeToCacheInBytes: 25 * 1024 * 1024, // 25MB
-
-        // 🚫 Exclude heavy WASM from precache
-        globIgnores: ["**/*.wasm"],
-
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
-      },
-
+      registerType: 'autoUpdate',
+      includeAssets: ['icon-192x192.png', 'icon-512x512.png'],
       manifest: {
-        name: "Saarthi - Disaster Management",
-        short_name: "Saarthi",
-        description:
-          "Real-time disaster management and emergency response system with offline support",
-        theme_color: "#667eea",
-        background_color: "#ffffff",
-        display: "standalone",
-        orientation: "portrait",
-        scope: "/",
-        start_url: "/",
+        name: 'Saarthi - Disaster Management',
+        short_name: 'Saarthi',
+        description: 'Real-time disaster management and emergency response system with offline support',
+        theme_color: '#667eea',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
         icons: [
           {
-            src: "/icon-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-            purpose: "any maskable",
+            src: '/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
-            src: "/icon-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "any maskable",
-          },
-        ],
-      },
-    }),
+            src: '/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      }
+    })
   ],
-
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-  },
-
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ["react", "react-dom"],
-        },
-      },
-    },
-    chunkSizeWarningLimit: 1000,
   },
 }));
