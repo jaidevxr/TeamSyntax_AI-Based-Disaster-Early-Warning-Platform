@@ -128,43 +128,54 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
     setLoading(true);
 
     try {
-      // Always attempt the edge function — navigator.onLine is unreliable in dev/proxy environments
-      // Offline fallback is triggered by actual network fetch failures, not navigator.onLine
+      // Always attempt direct Groq API call — edge function requires Supabase secret not yet configured
+      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY as string;
 
-      // Call Groq via Supabase Edge Function — API key is server-side only, never in client code
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      if (!GROQ_API_KEY) {
+        throw new Error('GROQ_API_KEY not configured. Add VITE_GROQ_API_KEY to your .env file.');
+      }
 
       const allMessages = [...messages, userMessage];
 
-      const edgeResponse = await fetch(
-        `${SUPABASE_URL}/functions/v1/copilot-chat`,
+      const systemPrompt = `You are Saarthi, an advanced disaster response and medical AI assistant for India.
+You ONLY respond to disaster-related, emergency, and medical/health-related queries.
+${userLocation ? `User location: ${locationName || `${userLocation.lat.toFixed(2)}, ${userLocation.lng.toFixed(2)}`}` : ''}
+If asked an unrelated question, politely decline and offer to help with emergencies only.
+Always respond in a calm, clear, actionable way. Prioritize safety.`;
+
+      const groqMessages = [
+        { role: 'system', content: systemPrompt },
+        ...allMessages.map(m => ({ role: m.role, content: m.content })),
+      ];
+
+      const groqResponse = await fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${GROQ_API_KEY}`,
           },
           body: JSON.stringify({
-            messages: allMessages,
-            location: userLocation,
-            language,
+            model: 'llama-3.3-70b-versatile',
+            messages: groqMessages,
+            max_tokens: 1024,
           }),
         }
       );
 
-      if (!edgeResponse.ok) {
-        const errData = await edgeResponse.json().catch(() => ({}));
-        // Throw a fetch-like error so the offline fallback catches it
-        const statusMsg = edgeResponse.status === 401 ? 'Invalid Supabase key' :
-          edgeResponse.status === 404 ? 'Edge function not found — deploy copilot-chat function' :
-            edgeResponse.status === 500 ? (errData.error || 'Edge function internal error') :
-              `Server error ${edgeResponse.status}`;
-        throw new Error(statusMsg);
+      if (!groqResponse.ok) {
+        const errData = await groqResponse.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `Groq API error: ${groqResponse.status}`);
       }
 
-      const data = await edgeResponse.json();
+      const groqData = await groqResponse.json();
+
+      if (!groqData.choices || groqData.choices.length === 0) {
+        throw new Error(groqData.error?.message || 'No response from Groq');
+      }
+
+      const aiText = groqData.choices[0].message.content;
 
 
       // Parse the response to extract facility data if present
@@ -173,7 +184,7 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
 
       // Try to extract JSON data from the response
       try {
-        const jsonMatch = data.message.match(/\{[\s\S]*"facilities"[\s\S]*\}/);
+        const jsonMatch = aiText.match(/\{[\s\S]*"facilities"[\s\S]*\}/);
         if (jsonMatch) {
           const extracted = JSON.parse(jsonMatch[0]);
           facilities = extracted.facilities;
@@ -185,11 +196,12 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
 
       const assistantMessage: Message = {
         role: 'assistant',
-        content: data.message,
+        content: aiText,
         facilities,
         userLocation: parsedUserLocation,
       };
       setMessages(prev => [...prev, assistantMessage]);
+
     } catch (error) {
       console.error('Error:', error);
 

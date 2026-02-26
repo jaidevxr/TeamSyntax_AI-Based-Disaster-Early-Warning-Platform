@@ -216,17 +216,42 @@ export const fetchDisasterData = async (): Promise<DisasterEvent[]> => {
   }
 
   try {
-    // 2. Fetch from GDACS (all disaster types)
-    const gdacsUrl = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH';
-    const gdacsResponse = await axios.get(gdacsUrl, {
-      params: {
-        fromDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        toDate: new Date().toISOString().split('T')[0],
-        alertlevel: 'Orange;Red',
-      }
-    });
+    // 2. Fetch from GDACS (using CORS proxy since GDACS blocks direct browser requests)
+    const fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const toDate = new Date().toISOString().split('T')[0];
+    const gdacsPath = `/gdacsapi/api/events/geteventlist/SEARCH?fromDate=${fromDate}&toDate=${toDate}&alertlevel=Orange;Red`;
 
-    const gdacsEvents = gdacsResponse.data.features || [];
+    // Try direct first, then CORS proxy
+    const gdacsUrls = [
+      `https://www.gdacs.org${gdacsPath}`,
+      `https://corsproxy.io/?${encodeURIComponent(`https://www.gdacs.org${gdacsPath}`)}`,
+      `https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.gdacs.org${gdacsPath}`)}`,
+    ];
+
+    let gdacsEvents: any[] = [];
+
+    for (const gdacsUrl of gdacsUrls) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(gdacsUrl, { signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) continue;
+
+        let json: any;
+        if (gdacsUrl.includes('allorigins')) {
+          const wrapper = await res.json();
+          json = JSON.parse(wrapper.contents);
+        } else {
+          json = await res.json();
+        }
+        gdacsEvents = json.features || [];
+        break; // success — stop trying
+      } catch {
+        // try next URL
+        continue;
+      }
+    }
 
     gdacsEvents.forEach((event: any) => {
       const coords = event.geometry?.coordinates;
@@ -235,10 +260,8 @@ export const fetchDisasterData = async (): Promise<DisasterEvent[]> => {
       const lng = coords[0];
       const lat = coords[1];
 
-      // Strict India boundary check
       if (!isInIndia(lat, lng)) return;
 
-      // Only include if country is India
       const props = event.properties;
       const country = (props.country || '').toLowerCase();
       if (country && country !== 'india') return;
@@ -263,11 +286,7 @@ export const fetchDisasterData = async (): Promise<DisasterEvent[]> => {
         type: disasterType,
         severity,
         magnitude: props.severity?.value,
-        location: {
-          lat,
-          lng,
-          name: stateName
-        },
+        location: { lat, lng, name: stateName },
         time: props.fromdate || new Date().toISOString(),
         title: `${props.name || disasterType} - ${stateName}`,
         description: props.htmldescription || props.description || `GDACS ${severity} alert in ${stateName}`,
@@ -275,14 +294,10 @@ export const fetchDisasterData = async (): Promise<DisasterEvent[]> => {
       });
     });
 
-    const indiaGdacsCount = gdacsEvents.filter((e: any) => {
-      const c = e.geometry?.coordinates;
-      return c && isInIndia(c[1], c[0]);
-    }).length;
-
   } catch (error) {
     console.error('Error fetching GDACS data:', error);
   }
+
 
   // Remove duplicates based on coordinates and time (within 1 hour)
   const uniqueDisasters = allDisasters.filter((disaster, index, self) => {

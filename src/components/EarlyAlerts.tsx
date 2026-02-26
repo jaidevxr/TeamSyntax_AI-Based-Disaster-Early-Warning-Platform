@@ -154,7 +154,10 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
     }
   }, [userLocation]);
 
+  const fetchDoneRef = useRef(false);
+
   const simulatePhases = useCallback(() => {
+    fetchDoneRef.current = false;
     setCompletedPhases(new Set());
     setCalcProgress(0);
 
@@ -165,9 +168,11 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
     let idx = 0;
 
     const advancePhase = () => {
+      // Stop immediately if the real fetch already finished — avoid overwriting 'done' state
+      if (fetchDoneRef.current) return;
+
       if (idx < phaseKeys.length) {
-        const currentKey = phaseKeys[idx];
-        setCurrentPhase(currentKey);
+        setCurrentPhase(phaseKeys[idx]);
         setCalcProgress(((idx + 1) / (phaseKeys.length + 1)) * 100);
 
         // Mark previous phase as completed
@@ -178,7 +183,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
         idx++;
         phaseTimerRef.current = setTimeout(advancePhase, 700 + Math.random() * 800);
       } else {
-        // Mark the LAST phase (analyzing) as completed too — this was the bug
+        // Mark the LAST phase (analyzing) as completed
         setCompletedPhases(prev => new Set([...prev, phaseKeys[phaseKeys.length - 1]]));
         setCurrentPhase('done');
         setCalcProgress(100);
@@ -561,6 +566,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
       });
 
       // ── Finalize ──────────────────────────────────────────────────────────
+      fetchDoneRef.current = true; // Signal timer to stop
       if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
       setCompletedPhases(new Set(PHASES.map(p => p.key)));
       setCurrentPhase('done');
@@ -579,12 +585,14 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
       notifyForAlerts(generatedAlerts);
     } catch (err) {
       console.error('Failed to generate early alerts:', err);
+      fetchDoneRef.current = true; // Signal timer to stop on error too
       if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
       setCurrentPhase('done');
       setCalcProgress(100);
     } finally {
       setLoading(false);
     }
+
   }, [userLocation, simulatePhases, notifyForAlerts]);
 
   useEffect(() => {
