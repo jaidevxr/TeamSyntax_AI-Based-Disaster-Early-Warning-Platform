@@ -528,16 +528,20 @@ export const fetchEmergencyFacilities = async (location: Location, radius: numbe
     }
   } catch { /* ignore parse errors */ }
 
+  // Optimization: Queries for 'nwr' (nodes, ways, and relations) across 25km repeatedly triggers
+  // Overpass 429 Too Many Requests or 504 Gateway Timeout on public mirrors.
+  // Instead, we fetch only 'node' which dramatically reduces computational load and response size,
+  // while still pinpointing the exact location of hospitals, police, and fire stations.
   const query = `
-    [out:json][timeout:15];
+    [out:json][timeout:25];
     (
-      nwr["amenity"="hospital"](around:${radius},${location.lat},${location.lng});
-      nwr["amenity"="police"](around:${radius},${location.lat},${location.lng});
-      nwr["amenity"="fire_station"](around:${radius},${location.lat},${location.lng});
-      nwr["emergency"="assembly_point"](around:${radius},${location.lat},${location.lng});
-      nwr["disaster:shelter"="yes"](around:${radius},${location.lat},${location.lng});
+      node["amenity"="hospital"](around:${radius},${location.lat},${location.lng});
+      node["amenity"="police"](around:${radius},${location.lat},${location.lng});
+      node["amenity"="fire_station"](around:${radius},${location.lat},${location.lng});
+      node["emergency"="assembly_point"](around:${radius},${location.lat},${location.lng});
+      node["disaster:shelter"="yes"](around:${radius},${location.lat},${location.lng});
     );
-    out center;
+    out;
   `;
 
   try {
