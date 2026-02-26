@@ -19,7 +19,7 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = 
+    const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
       Math.sin(dLng / 2) * Math.sin(dLng / 2);
@@ -27,10 +27,10 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
     return R * c;
   };
 
-  // ONLY show disasters that have a real report URL
+  // Show only verified disasters (with trusted source URLs)
   const verifiedDisasters = disasters.filter(d => {
+    if (d.isPrediction) return false; // predictions shown separately
     if (!d.url) return false;
-    // Must be a real URL from known sources
     try {
       const url = new URL(d.url);
       const trustedDomains = [
@@ -47,11 +47,14 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
     }
   });
 
-  const nearbyDisasters = userLocation 
+  // AI risk predictions shown in their own section
+  const predictions = disasters.filter(d => d.isPrediction === true);
+
+  const nearbyDisasters = userLocation
     ? verifiedDisasters.filter(d => {
-        const distance = calculateDistance(userLocation.lat, userLocation.lng, d.location.lat, d.location.lng);
-        return distance <= 500;
-      })
+      const distance = calculateDistance(userLocation.lat, userLocation.lng, d.location.lat, d.location.lng);
+      return distance <= 500;
+    })
     : [];
 
   if (loading) {
@@ -154,17 +157,17 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
               <span className="text-xl sm:text-2xl">{getDisasterIcon(type)}</span>
               {type.replace('_', ' ')}s ({typeDisasters.length})
             </h3>
-            
+
             <div className="space-y-2 sm:space-y-3">
               {typeDisasters.map((disaster) => {
                 const isExpanded = expandedItems.has(disaster.id);
-                const distance = userLocation 
+                const distance = userLocation
                   ? calculateDistance(userLocation.lat, userLocation.lng, disaster.location.lat, disaster.location.lng)
                   : null;
-                
+
                 return (
-                  <Card 
-                    key={disaster.id} 
+                  <Card
+                    key={disaster.id}
                     className={`glass-strong p-3 sm:p-5 transition-all duration-300 hover:shadow-elevated cursor-pointer border-2 ${getSeverityColor(disaster.severity)} backdrop-blur-lg`}
                   >
                     <div className="space-y-3 sm:space-y-4">
@@ -183,7 +186,7 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
                           <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-1">
                             {disaster.description}
                           </p>
-                          
+
                           {/* Meta info */}
                           <div className="flex items-center gap-2 sm:gap-3 mt-2 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
                             <div className="flex items-center gap-1">
@@ -207,8 +210,8 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
 
                       {/* Report link - always visible */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="default"
                           asChild
                           className="text-xs h-8 gap-1.5"
@@ -218,8 +221,8 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
                             {getSourceName(disaster.url!)} Report
                           </a>
                         </Button>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={() => onDisasterClick(disaster)}
                           className="text-xs h-8 gap-1.5"
@@ -246,7 +249,7 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
                               <Badge variant="secondary">{disaster.magnitude}</Badge>
                             </div>
                           )}
-                          
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
                             <div>
                               <span className="font-medium">Coordinates:</span>
@@ -302,7 +305,7 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
         </div>
       )}
 
-      {/* All India */}
+      {/* All India Verified */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-lg sm:text-2xl font-bold text-foreground">🇮🇳 All India</h2>
@@ -312,6 +315,65 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
         </div>
         {renderDisasterGroup(verifiedDisasters)}
       </div>
+
+      {/* AI Risk Predictions */}
+      {predictions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg sm:text-2xl font-bold text-foreground">🤖 AI Risk Predictions</h2>
+            <Badge variant="outline" className="text-xs sm:text-sm flex-shrink-0 bg-purple-500/10 border-purple-500/30">
+              {predictions.length} Forecast{predictions.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">AI-generated risk assessments based on weather, season, and geographic data. Not verified events.</p>
+          <div className="space-y-2 sm:space-y-3">
+            {predictions.map((disaster) => {
+              const distance = userLocation
+                ? calculateDistance(userLocation.lat, userLocation.lng, disaster.location.lat, disaster.location.lng)
+                : null;
+              return (
+                <Card
+                  key={disaster.id}
+                  className="glass-strong p-3 sm:p-5 border-2 border-purple-500/20 bg-purple-500/5 backdrop-blur-lg"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-xl text-xl flex-shrink-0">{getDisasterIcon(disaster.type, true)}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <h4 className="font-semibold text-sm leading-tight">{disaster.title}</h4>
+                        <Badge variant="outline" className="text-[10px] capitalize flex-shrink-0 bg-purple-500/10 border-purple-500/30">
+                          {disaster.severity}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{disaster.description}</p>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {disaster.probability !== undefined && (
+                          <Badge variant="outline" className="text-[10px] bg-purple-500/10 border-purple-400/30">
+                            {(disaster.probability * 100).toFixed(0)}% probability
+                          </Badge>
+                        )}
+                        {(disaster as any).timeframeDays !== undefined && (
+                          <Badge variant="outline" className="text-[10px] bg-blue-500/10 border-blue-400/30">
+                            {(disaster as any).timeframeDays}d window
+                          </Badge>
+                        )}
+                        {distance !== null && (
+                          <Badge variant="outline" className="text-[10px]">
+                            {distance.toFixed(0)} km
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="text-[10px] bg-muted">
+                          🤖 AI Prediction
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

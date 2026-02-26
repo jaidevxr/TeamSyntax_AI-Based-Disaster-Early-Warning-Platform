@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -7,9 +7,63 @@ import { Send, MapPin, Loader2, Bot, Navigation, Languages, WifiOff, Download } 
 import { useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { offlineTranslator, isOnline, translateSystemMessage, getEmergencyPhrase } from '@/utils/offlineTranslation';
-import { searchOfflineKnowledge, getOfflineTopics, canAnswerOffline } from '@/utils/offlineKnowledge';
+import { offlineTranslator, translateSystemMessage } from '@/utils/offlineTranslation';
+import { searchOfflineKnowledge } from '@/utils/offlineKnowledge';
 import type { Location } from '@/types';
+
+// ── Markdown renderer ─────────────────────────────────────────────────────────
+// Converts LLM markdown (bold, italic, headings, lists) to styled JSX
+const renderMarkdown = (text: string): React.ReactNode[] => {
+  const lines = text.split('\n');
+  const nodes: React.ReactNode[] = [];
+
+  const inlineFormat = (line: string, key: string | number): React.ReactNode => {
+    // Process **bold**, *italic*, `code` inline
+    const parts = line.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/);
+    return (
+      <span key={key}>
+        {parts.map((part, i) => {
+          if (part.startsWith('**') && part.endsWith('**'))
+            return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+          if (part.startsWith('*') && part.endsWith('*'))
+            return <em key={i} className="italic">{part.slice(1, -1)}</em>;
+          if (part.startsWith('`') && part.endsWith('`'))
+            return <code key={i} className="px-1 py-0.5 bg-muted rounded text-xs font-mono">{part.slice(1, -1)}</code>;
+          return part;
+        })}
+      </span>
+    );
+  };
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { nodes.push(<div key={i} className="h-1" />); i++; continue; }
+    // Headings
+    if (line.startsWith('### ')) { nodes.push(<h4 key={i} className="font-bold text-sm mt-3 mb-1 text-foreground">{inlineFormat(line.slice(4), 'h')}</h4>); i++; continue; }
+    if (line.startsWith('## ')) { nodes.push(<h3 key={i} className="font-bold text-base mt-3 mb-1 text-foreground">{inlineFormat(line.slice(3), 'h')}</h3>); i++; continue; }
+    if (line.startsWith('# ')) { nodes.push(<h2 key={i} className="font-bold text-lg mt-3 mb-1 text-foreground">{inlineFormat(line.slice(2), 'h')}</h2>); i++; continue; }
+    // Bullet lists
+    if (line.match(/^[•\-*] /) || line.match(/^\d+[.)]/)) {
+      const listItems: React.ReactNode[] = [];
+      while (i < lines.length && (lines[i].match(/^[•\-*] /) || lines[i].match(/^\d+[.)]/) || lines[i].trim() === '')) {
+        if (lines[i].trim() !== '') {
+          const content = lines[i].replace(/^[•\-*] |^\d+[.)] /, '');
+          listItems.push(<li key={i} className="ml-3 text-sm leading-relaxed">{inlineFormat(content, i)}</li>);
+        }
+        i++;
+      }
+      nodes.push(<ul key={`ul-${i}`} className="list-disc list-inside space-y-0.5 my-1">{listItems}</ul>);
+      continue;
+    }
+    // Horizontal rule
+    if (line.match(/^-{3,}$/) || line.match(/^_{3,}$/)) { nodes.push(<hr key={i} className="border-border/30 my-2" />); i++; continue; }
+    // Regular paragraph
+    nodes.push(<p key={i} className="text-sm leading-relaxed">{inlineFormat(line, i)}</p>);
+    i++;
+  }
+  return nodes;
+};
 
 interface Message {
   role: 'user' | 'assistant';
@@ -58,30 +112,24 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
   }, [userLocation]);
 
   useEffect(() => {
-    // Probe actual connectivity with a real HTTP request
-    // navigator.onLine is unreliable in dev/proxy/VPN environments
+    // Probe actual connectivity — navigator.onLine is unreliable in dev/VPN environments
     const probeConnectivity = async () => {
       try {
-        const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-        const probeUrl = SUPABASE_URL
-          ? `${SUPABASE_URL}/functions/v1/health-check`  // any fast endpoint
-          : 'https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m';
-        await fetch(probeUrl, { method: 'HEAD', signal: AbortSignal.timeout(4000) });
+        await fetch(
+          'https://api.open-meteo.com/v1/forecast?latitude=20&longitude=78&current=temperature_2m',
+          { method: 'HEAD', signal: AbortSignal.timeout(4000) }
+        );
         setOnline(true);
       } catch {
-        // Only mark offline if fetch itself fails
         setOnline(false);
       }
     };
 
     probeConnectivity();
-
-    const handleOnline = () => { setOnline(true); };
-    const handleOffline = () => { probeConnectivity(); }; // Re-probe on browser offline event
-
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => probeConnectivity();
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -128,24 +176,47 @@ const CopilotChat = ({ userLocation }: CopilotChatProps) => {
     setLoading(true);
 
     try {
-      // Always attempt direct Groq API call — edge function requires Supabase secret not yet configured
       const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY as string;
-
-      if (!GROQ_API_KEY) {
-        throw new Error('GROQ_API_KEY not configured. Add VITE_GROQ_API_KEY to your .env file.');
-      }
+      if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not configured');
 
       const allMessages = [...messages, userMessage];
 
-      const systemPrompt = `You are Saarthi, an advanced disaster response and medical AI assistant for India.
-You ONLY respond to disaster-related, emergency, and medical/health-related queries.
-${userLocation ? `User location: ${locationName || `${userLocation.lat.toFixed(2)}, ${userLocation.lng.toFixed(2)}`}` : ''}
-If asked an unrelated question, politely decline and offer to help with emergencies only.
-Always respond in a calm, clear, actionable way. Prioritize safety.`;
+      // Build an enriched system prompt with real context
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      const langNames: Record<string, string> = {
+        en: 'English', hi: 'Hindi', ta: 'Tamil', bn: 'Bengali', te: 'Telugu',
+        mr: 'Marathi', gu: 'Gujarati', kn: 'Kannada', ml: 'Malayalam', pa: 'Punjabi',
+      };
+
+      const systemPrompt = `You are Saarthi, an expert AI disaster-response and medical assistant for India, built by Team Syntax.
+Current date/time in India: ${dateStr}, ${timeStr} IST.
+${userLocation ? `User is located at: ${locationName || `${userLocation.lat.toFixed(4)}°N, ${userLocation.lng.toFixed(4)}°E`}` : 'User location: not yet provided.'}
+Respond ONLY in ${langNames[language] || 'English'}.
+
+You specialize in:
+- Disaster preparedness & response (flood, earthquake, cyclone, fire, landslide, heatwave, cold wave, AQI)
+- NDMA safety protocols and Indian government emergency procedures
+- First aid & medical emergency guidance
+- Locating nearby hospitals, police, shelters, fire stations
+- India emergency numbers: 112 (National), 100 (Police), 101 (Fire), 102 (Ambulance), 108 (NDRF), 1099 (Coast Guard)
+
+Formatting rules:
+- Use **bold** for key terms and emergency numbers
+- Use bullet lists (- item) for steps or lists
+- Use ## for section headings when needed
+- Keep responses concise but actionable — no unnecessary filler
+- Always end with the most relevant emergency number if the situation is critical
+
+If asked something completely unrelated to disasters/health/emergencies, politely say you specialize in disaster response and redirect.`;
+
+      // Trim history to last 16 messages to avoid token limit issues
+      const trimmedMessages = allMessages.slice(-16);
 
       const groqMessages = [
         { role: 'system', content: systemPrompt },
-        ...allMessages.map(m => ({ role: m.role, content: m.content })),
+        ...trimmedMessages.map(m => ({ role: m.role, content: m.content })),
       ];
 
       const groqResponse = await fetch(
@@ -319,13 +390,25 @@ Always respond in a calm, clear, actionable way. Prioritize safety.`;
   };
 
   const quickTopics = [
-    { label: 'Emergency Numbers', query: 'emergency numbers' },
-    { label: 'CPR', query: 'how to do CPR' },
-    { label: 'Earthquake Safety', query: 'earthquake safety' },
-    { label: 'First Aid Kit', query: 'first aid kit essentials' },
-    { label: 'Flood Safety', query: 'flood safety guidelines' },
-    { label: 'Fire Emergency', query: 'what to do in fire emergency' },
+    { label: '🚨 Emergency Numbers', query: 'What are the emergency helpline numbers in India?' },
+    { label: '❤️ CPR Guide', query: 'How do I perform CPR on an adult?' },
+    { label: '🌊 Flood Safety', query: 'What should I do during a flood?' },
+    { label: '⚡ Earthquake Safety', query: 'What to do during an earthquake?' },
+    { label: '🌀 Cyclone Safety', query: 'How do I stay safe during a cyclone?' },
+    { label: '🎒 Emergency Kit', query: 'What should be in a 72-hour emergency survival kit?' },
+    { label: '🔥 Fire Escape', query: 'What to do if there is a fire at home?' },
+    { label: '🏥 First Aid', query: 'Basic first aid for bleeding wounds?' },
   ];
+
+  // Auto-send on quick topic click
+  const handleQuickTopic = useCallback((query: string) => {
+    setInput(query);
+    // Small delay so the input is set before handleSend reads it
+    setTimeout(() => {
+      const sendBtn = document.getElementById('copilot-send-btn');
+      sendBtn?.click();
+    }, 50);
+  }, []);
 
   return (
     <div className="h-full flex flex-col">
@@ -425,8 +508,8 @@ Always respond in a calm, clear, actionable way. Prioritize safety.`;
                     key={idx}
                     variant="outline"
                     size="sm"
-                    onClick={() => setInput(topic.query)}
-                    className="text-xs h-7 md:h-8 px-2 md:px-3"
+                    onClick={() => handleQuickTopic(topic.query)}
+                    className="text-xs h-7 md:h-8 px-2 md:px-3 hover:bg-primary/10 hover:border-primary/40 transition-colors"
                   >
                     {topic.label}
                   </Button>
@@ -470,12 +553,18 @@ Always respond in a calm, clear, actionable way. Prioritize safety.`;
                 }`}
             >
               <div
-                className={`p-3 md:p-4 rounded-2xl text-sm md:text-base ${message.role === 'user'
-                  ? 'bg-primary text-primary-foreground'
+                className={`p-3 md:p-4 rounded-2xl ${message.role === 'user'
+                  ? 'bg-primary text-primary-foreground text-sm md:text-base'
                   : 'bg-card border border-border/40 text-card-foreground'
                   }`}
               >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                {message.role === 'user' ? (
+                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                ) : (
+                  <div className="space-y-1 text-sm leading-relaxed">
+                    {renderMarkdown(message.content)}
+                  </div>
+                )}
               </div>
 
               {/* Show facility action buttons for hospitals */}
@@ -538,11 +627,12 @@ Always respond in a calm, clear, actionable way. Prioritize safety.`;
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={online ? "Ask about weather, risks, facilities..." : "Ask about emergencies, first aid..."}
+            placeholder={online ? "Ask about disasters, first aid, emergency numbers..." : "Offline: ask about first aid, emergencies..."}
             className="flex-1 bg-background border-border/40 text-sm md:text-base h-9 md:h-10"
             disabled={loading}
           />
           <Button
+            id="copilot-send-btn"
             onClick={handleSend}
             disabled={loading || !input.trim()}
             size="icon"
