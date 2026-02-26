@@ -1,0 +1,19 @@
+project_id = "ziqqqkzxakejqdixevng"
+
+[functions.copilot-chat]
+verify_jwt = false
+
+[functions.weather]
+verify_jwt = false
+
+[functions.predict-disasters]
+verify_jwt = false
+
+[functions.nearby]
+verify_jwt = false
+
+[functions.send-emergency-alert]
+verify_jwt = false
+
+[functions.early-alerts]
+verify_jwt = false
