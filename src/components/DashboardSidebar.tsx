@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  MapPin, 
-  Cloud, 
-  AlertTriangle, 
-  Bot, 
-  Menu, 
-  X, 
-  Hospital, 
-  Shield, 
+import {
+  MapPin,
+  Cloud,
+  AlertTriangle,
+  Bot,
+  Menu,
+  X,
+  Hospital,
+  Shield,
   Flame,
   Activity,
   ChevronRight,
   Download,
   BellRing,
-  History
+  History,
+  MessageSquare,
+  Zap,
+  Users,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -35,6 +38,7 @@ interface DashboardSidebarProps {
   onToggleCollapse: () => void;
   onFacilityClick: (facility: EmergencyFacility) => void;
   onLocationUpdate: (location: Location) => void;
+  language: 'en' | 'hi';
   children?: React.ReactNode;
 }
 
@@ -45,6 +49,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   onToggleCollapse,
   onFacilityClick,
   onLocationUpdate,
+  language,
   children,
 }) => {
   const navigate = useNavigate();
@@ -54,61 +59,93 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState(false);
 
+  const labels = {
+    en: {
+      overview: 'Live Heatmap',
+      earlyAlerts: 'Early Warnings',
+      weather: 'Weather Alerts',
+      disasters: 'Active Disasters',
+      emergencyHub: 'Emergency Hub',
+      safetyGuide: 'Safety Guide',
+      volunteerHub: 'Volunteer Hub',
+      aiInsights: 'AI Copilot',
+      alertHistory: 'Alert History',
+    },
+    hi: {
+      overview: 'लाइव हीटमैप',
+      earlyAlerts: 'प्रारंभिक चेतावनी',
+      weather: 'मौसम अलर्ट',
+      disasters: 'सक्रिय आपदाएं',
+      emergencyHub: 'आपातकालीन केंद्र',
+      safetyGuide: 'सुरक्षा मार्गदर्शिका',
+      volunteerHub: 'स्वयंसेवक हब',
+      aiInsights: 'AI कोपायलट',
+      alertHistory: 'अलर्ट इतिहास',
+    }
+  };
+
   const navItems = [
-    { 
-      id: 'overview', 
-      label: 'Live Heatmap', 
+    {
+      id: 'overview',
+      label: labels[language].overview,
       icon: Activity,
-      gradient: 'from-primary to-accent',
+      gradient: 'from-primary to-teal-600',
       description: 'Real-time disaster tracking'
     },
-    { 
-      id: 'early-alerts', 
-      label: 'Early Warnings', 
+    {
+      id: 'early-alerts',
+      label: labels[language].earlyAlerts,
       icon: BellRing,
-      gradient: 'from-destructive to-warning',
+      gradient: 'from-destructive to-amber-600',
       description: 'Flood, quake & weather alerts'
     },
-    { 
-      id: 'weather', 
-      label: 'Weather Alerts', 
+    {
+      id: 'weather',
+      label: labels[language].weather,
       icon: Cloud,
-      gradient: 'from-secondary to-primary',
+      gradient: 'from-primary to-emerald-500',
       description: 'AI-powered forecasts'
     },
-    { 
-      id: 'disasters', 
-      label: 'Active Disasters', 
+    {
+      id: 'disasters',
+      label: labels[language].disasters,
       icon: AlertTriangle,
-      gradient: 'from-warning to-destructive',
+      gradient: 'from-amber-600 to-destructive',
       description: 'Live threat monitoring'
     },
-    { 
-      id: 'emergency-services', 
-      label: 'Emergency Hub', 
+    {
+      id: 'emergency-services',
+      label: labels[language].emergencyHub,
       icon: Hospital,
-      gradient: 'from-success to-primary',
+      gradient: 'from-success to-emerald-700',
       description: 'Nearest facilities'
     },
-    { 
-      id: 'guidelines', 
-      label: 'Safety Guide', 
+    {
+      id: 'guidelines',
+      label: labels[language].safetyGuide,
       icon: Shield,
-      gradient: 'from-accent to-secondary',
+      gradient: 'from-primary to-accent',
       description: 'Emergency protocols'
     },
-    { 
-      id: 'ai-insights', 
-      label: 'AI Copilot', 
+    {
+      id: 'resource-coordination',
+      label: labels[language].volunteerHub,
+      icon: Users,
+      gradient: 'from-emerald-700 to-teal-700',
+      description: 'Volunteer coordination'
+    },
+    {
+      id: 'ai-insights',
+      label: labels[language].aiInsights,
       icon: Bot,
-      gradient: 'from-primary via-accent to-secondary',
+      gradient: 'from-primary via-emerald-600 to-teal-500',
       description: 'Smart assistance'
     },
-    { 
-      id: 'alert-history', 
-      label: 'Alert History', 
+    {
+      id: 'alert-history',
+      label: labels[language].alertHistory,
       icon: History,
-      gradient: 'from-muted to-primary',
+      gradient: 'from-slate-400 to-primary',
       description: 'Past notifications'
     },
   ];
@@ -121,7 +158,12 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
         onLocationUpdate(location);
         loadEmergencyFacilities(location);
       } catch (error) {
-        console.error('❌ [DashboardSidebar] Error getting user location:', error);
+        console.error('❌ [DashboardSidebar] Geolocation failed, using fallback:', error);
+        // Fallback to New Delhi if geolocation is blocked or fails
+        const fallback: Location = { lat: 28.6139, lng: 77.2090, name: 'New Delhi, Delhi' };
+        setUserLocation(fallback);
+        onLocationUpdate(fallback);
+        loadEmergencyFacilities(fallback);
       }
     };
 
@@ -153,7 +195,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    
+
     if (outcome === 'accepted') {
       setIsInstalled(true);
       setDeferredPrompt(null);
@@ -198,21 +240,20 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   };
 
   return (
-    <aside 
-      className={`fixed md:relative left-0 top-0 bottom-0 z-[3000] md:z-10 flex flex-col transition-all duration-300 ease-out overflow-hidden border-r border-border/20 shadow-2xl bg-gradient-to-br from-background/95 via-background/90 to-background/95 backdrop-blur-xl ${
-        isCollapsed ? 'w-16 -translate-x-full md:translate-x-0' : 'w-72 translate-x-0'
-      }`}
+    <aside
+      className={`fixed md:relative left-0 top-0 bottom-0 z-[3000] md:z-10 flex flex-col transition-all duration-300 ease-out overflow-hidden border-r border-border/20 shadow-2xl bg-gradient-to-br from-background/95 via-background/90 to-background/95 backdrop-blur-xl ${isCollapsed ? 'w-16 -translate-x-full md:translate-x-0' : 'w-72 translate-x-0'
+        }`}
     >
       {/* Multi-layer glassmorphism */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/5 pointer-events-none" />
-      
+
       {/* Refined dot pattern texture */}
       <div className="absolute inset-0 opacity-[0.08] pointer-events-none" style={{
         backgroundImage: 'radial-gradient(circle, hsl(var(--primary)) 0.5px, transparent 0.5px)',
         backgroundSize: '20px 20px'
       }} />
-      
+
       {/* Content */}
       <div className="flex flex-col h-full relative z-10">
         {/* Header */}
@@ -246,7 +287,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
-              
+
               const buttonContent = (
                 <button
                   key={item.id}
@@ -254,8 +295,8 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
                   className={`
                     group w-full rounded-xl transition-all duration-200 relative overflow-hidden
                     ${isCollapsed ? 'p-2 flex items-center justify-center' : 'p-3.5'}
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-primary/15 to-accent/10 backdrop-blur-sm text-primary shadow-lg border border-primary/20' 
+                    ${isActive
+                      ? 'bg-gradient-to-r from-primary/15 to-accent/10 backdrop-blur-sm text-primary shadow-lg border border-primary/20'
                       : 'hover:bg-gradient-to-r hover:from-primary/5 hover:to-transparent hover:border hover:border-border/30'
                     }
                   `}
@@ -300,7 +341,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
         <div className="p-4 border-t border-border/20 bg-gradient-to-r from-transparent to-primary/5 backdrop-blur-sm space-y-3">
           {/* Offline Indicator */}
           {children}
-          
+
           {/* Install Button */}
           {!isInstalled && (
             <TooltipProvider delayDuration={200}>
@@ -325,7 +366,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
               </Tooltip>
             </TooltipProvider>
           )}
-          
+
           {/* System Status */}
           {!isCollapsed && (
             <div className="flex items-center justify-between text-xs bg-muted/30 rounded-lg p-2.5 border border-border/20">

@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { AlertTriangle, MapPin, Clock, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  AlertTriangle, MapPin, Clock, ExternalLink, ChevronDown, ChevronUp,
+  Radio, Waves, Wind, Flame, Mountain, Sun, AlertCircle, Database, Zap, Globe
+} from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DisasterEvent } from '@/types';
+import { DisasterEvent, Location } from '@/types';
+import { calculateDistance } from '@/utils/api';
 
 interface DisasterListProps {
   disasters: DisasterEvent[];
@@ -15,17 +19,6 @@ interface DisasterListProps {
 const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick, loading, userLocation }) => {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
 
   // Show only verified disasters (with trusted source URLs)
   const verifiedDisasters = disasters.filter(d => {
@@ -52,8 +45,8 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
 
   const nearbyDisasters = userLocation
     ? verifiedDisasters.filter(d => {
-      const distance = calculateDistance(userLocation.lat, userLocation.lng, d.location.lat, d.location.lng);
-      return distance <= 500;
+      const distance = calculateDistance(userLocation, d.location);
+      return distance <= 1000; // Expanded Regional Radius
     })
     : [];
 
@@ -100,23 +93,22 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
   const getDisasterIcon = (type: string, isPrediction: boolean = false) => {
     if (isPrediction) return '🤖';
     switch (type) {
-      case 'earthquake': return '⚡';
-      case 'flood': return '🌊';
-      case 'cyclone': return '🌀';
-      case 'fire': case 'wildfire': return '🔥';
-      case 'landslide': return '⛰️';
-      case 'drought': return '🌵';
-      case 'tsunami': return '🌊';
-      default: return '⚠️';
+      case 'earthquake': return 'Radio';
+      case 'flood': return 'Waves';
+      case 'cyclone': return 'Wind';
+      case 'fire': case 'wildfire': return 'Flame';
+      case 'landslide': return 'Mountain';
+      case 'drought': return 'Sun';
+      case 'tsunami': return 'Waves';
+      default: return 'AlertCircle';
     }
   };
 
-  const getSeverityColor = (severity: string) => {
+  const getSeverityStyle = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'border-red-500/50 bg-red-500/5';
-      case 'high': return 'severity-high';
-      case 'medium': return 'severity-medium';
-      default: return 'severity-low';
+      case 'critical': return 'border-destructive/20 bg-destructive/5 text-destructive';
+      case 'high': return 'border-warning/20 bg-warning/5 text-warning';
+      default: return 'border-primary/20 bg-primary/5 text-primary';
     }
   };
 
@@ -141,10 +133,10 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
 
     if (disastersList.length === 0) {
       return (
-        <Card className="glass p-6 text-center">
-          <AlertTriangle className="h-10 w-10 text-success mx-auto mb-3" />
-          <h3 className="font-semibold text-base mb-1">No Disasters in This Area</h3>
-          <p className="text-sm text-muted-foreground">No verified disasters reported in this region.</p>
+        <Card className="bg-white/40 dark:bg-slate-900/40 border-slate-200/50 dark:border-white/5 p-8 text-center rounded-2xl">
+          <AlertTriangle className="h-8 w-8 text-primary mx-auto mb-3 opacity-20" />
+          <h3 className="font-black text-[10px] tracking-[0.2em] mb-1 uppercase text-primary/60">No Regional Activity</h3>
+          <p className="text-[10px] text-primary/40 uppercase font-bold">Scanning telemetry for official verification...</p>
         </Card>
       );
     }
@@ -162,73 +154,78 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
               {typeDisasters.map((disaster) => {
                 const isExpanded = expandedItems.has(disaster.id);
                 const distance = userLocation
-                  ? calculateDistance(userLocation.lat, userLocation.lng, disaster.location.lat, disaster.location.lng)
+                  ? calculateDistance(userLocation, disaster.location)
                   : null;
+
+                const iconString = getDisasterIcon(disaster.type, disaster.isPrediction);
+                const severityStyle = getSeverityStyle(disaster.severity);
 
                 return (
                   <Card
                     key={disaster.id}
-                    className={`glass-strong p-3 sm:p-5 transition-all duration-300 hover:shadow-elevated cursor-pointer border-2 ${getSeverityColor(disaster.severity)} backdrop-blur-lg`}
+                    className={`premium-card p-4 hover:bg-slate-100/40 dark:hover:bg-slate-900/60 cursor-pointer rounded-2xl group border-slate-200/50 dark:border-white/5`}
+                    onClick={() => onDisasterClick(disaster)}
                   >
-                    <div className="space-y-3 sm:space-y-4">
+                    <div className="space-y-4">
                       {/* Header */}
-                      <div className="flex items-start gap-2 sm:gap-3">
-                        <div className={`p-2 sm:p-3 rounded-xl text-xl sm:text-2xl flex-shrink-0 ${getSeverityColor(disaster.severity)}`}>
-                          {getDisasterIcon(disaster.type, disaster.isPrediction)}
+                      <div className="flex items-start gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 dark:bg-slate-800/50 flex items-center justify-center border border-primary/20 dark:border-white/5 shadow-inner flex-shrink-0 group-hover:scale-110 transition-transform">
+                          <AlertTriangle className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
-                            <h4 className="font-semibold text-sm sm:text-base leading-tight line-clamp-2">{disaster.title}</h4>
-                            <Badge variant="outline" className={`${getSeverityColor(disaster.severity)} text-[10px] sm:text-xs flex-shrink-0 capitalize`}>
+                            <h4 className="font-black text-[10px] tracking-[0.2em] uppercase text-foreground leading-tight">{disaster.title}</h4>
+                            <Badge variant="outline" className={`${severityStyle} text-[9px] font-black uppercase tracking-widest border-white/10 px-2 py-0.5 rounded-full`}>
                               {disaster.severity}
                             </Badge>
                           </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-1">
+                          <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 mt-1 font-medium">
                             {disaster.description}
                           </p>
 
                           {/* Meta info */}
-                          <div className="flex items-center gap-2 sm:gap-3 mt-2 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3 flex-shrink-0" />
-                              <span className="truncate">{disaster.time ? new Date(disaster.time).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown'}</span>
+                          <div className="flex items-center gap-4 mt-3 text-[10px] text-slate-500 dark:text-slate-600 font-bold uppercase tracking-wider">
+                            <div className="flex items-center gap-1.5 bg-slate-100/50 dark:bg-slate-900/40 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-white/5">
+                              <Clock className="h-3 w-3 opacity-40" />
+                              <span>{disaster.time ? new Date(disaster.time).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown'}</span>
                             </div>
                             {disaster.location.name && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3 flex-shrink-0" />
-                                <span className="truncate">{disaster.location.name}</span>
+                              <div className="flex items-center gap-1.5 bg-slate-100/50 dark:bg-slate-900/40 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-white/5">
+                                <MapPin className="h-3 w-3 opacity-40" />
+                                <span className="truncate max-w-[120px]">{disaster.location.name}</span>
                               </div>
                             )}
                             {distance !== null && (
-                              <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5">
-                                {distance.toFixed(0)} km
-                              </Badge>
+                              <div className="flex items-center gap-1.5 bg-slate-100/50 dark:bg-slate-900/40 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-white/5">
+                                <Radio className="h-3 w-3 opacity-40" />
+                                <span>{distance.toFixed(0)} KM</span>
+                              </div>
                             )}
                           </div>
                         </div>
                       </div>
 
                       {/* Report link - always visible */}
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 pt-2">
                         <Button
                           size="sm"
-                          variant="default"
+                          variant="outline"
                           asChild
-                          className="text-xs h-8 gap-1.5"
+                          className="bg-slate-100/50 dark:bg-slate-900/40 border-slate-200/50 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:text-foreground hover:bg-slate-200 dark:hover:bg-slate-800 transition-all text-[9px] font-black uppercase tracking-widest h-8 px-4"
                         >
                           <a href={disaster.url} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-3 w-3" />
-                            {getSourceName(disaster.url!)} Report
+                            <ExternalLink className="h-3 w-3 mr-1.5 opacity-40" />
+                            {getSourceName(disaster.url!)} DOCS
                           </a>
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           onClick={() => onDisasterClick(disaster)}
-                          className="text-xs h-8 gap-1.5"
+                          className="text-slate-500 hover:text-foreground text-[9px] font-black uppercase tracking-widest h-8 px-4"
                         >
-                          <MapPin className="h-3 w-3" />
-                          Map
+                          <MapPin className="h-3 w-3 mr-1.5 opacity-40" />
+                          TELEMETRY MAP
                         </Button>
                         <Button
                           variant="ghost"
@@ -296,9 +293,11 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
       {userLocation && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg sm:text-2xl font-bold text-foreground">📍 Nearby (500 km)</h2>
-            <Badge variant="outline" className="text-xs sm:text-sm flex-shrink-0">
-              {nearbyDisasters.length} Event{nearbyDisasters.length !== 1 ? 's' : ''}
+            <h2 className="text-[10px] font-black tracking-[0.3em] text-primary/60 uppercase flex items-center gap-2">
+              <MapPin className="h-4 w-4" /> REGIONAL TELEMETRY (1000 KM)
+            </h2>
+            <Badge variant="outline" className="bg-primary/10 text-[9px] font-black uppercase tracking-widest border-primary/20 py-1 px-3">
+              {nearbyDisasters.length} LOCALIZED
             </Badge>
           </div>
           {renderDisasterGroup(nearbyDisasters)}
@@ -308,63 +307,55 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
       {/* All India Verified */}
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-lg sm:text-2xl font-bold text-foreground">🇮🇳 All India</h2>
-          <Badge variant="outline" className="text-xs sm:text-sm flex-shrink-0">
-            {verifiedDisasters.length} Verified
+          <h2 className="text-[10px] font-black tracking-[0.3em] text-slate-500 uppercase flex items-center gap-2">
+            <Globe className="h-4 w-4" /> NATIONAL VERIFIED FEED
+          </h2>
+          <Badge variant="outline" className="bg-slate-100/50 dark:bg-slate-900/40 text-[9px] font-black uppercase tracking-widest border-slate-200/50 dark:border-white/5 py-1 px-3">
+            {verifiedDisasters.length} TOTAL
           </Badge>
         </div>
         {renderDisasterGroup(verifiedDisasters)}
       </div>
 
-      {/* AI Risk Predictions */}
+      {/* ML Risk Predictions */}
       {predictions.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg sm:text-2xl font-bold text-foreground">🤖 AI Risk Predictions</h2>
-            <Badge variant="outline" className="text-xs sm:text-sm flex-shrink-0 bg-purple-500/10 border-purple-500/30">
-              {predictions.length} Forecast{predictions.length !== 1 ? 's' : ''}
-            </Badge>
+            <h2 className="text-[10px] font-black tracking-[0.3em] text-slate-500 uppercase flex items-center gap-2">
+              <Database className="h-4 w-4" /> NEURAL RISK PREDICTIONS
+            </h2>
           </div>
-          <p className="text-xs text-muted-foreground">AI-generated risk assessments based on weather, season, and geographic data. Not verified events.</p>
-          <div className="space-y-2 sm:space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {predictions.map((disaster) => {
               const distance = userLocation
-                ? calculateDistance(userLocation.lat, userLocation.lng, disaster.location.lat, disaster.location.lng)
+                ? calculateDistance(userLocation, disaster.location)
                 : null;
               return (
                 <Card
                   key={disaster.id}
-                  className="glass-strong p-3 sm:p-5 border-2 border-purple-500/20 bg-purple-500/5 backdrop-blur-lg"
+                  className="bg-slate-950/40 border border-white/5 p-4 rounded-2xl hover:bg-slate-900/60 transition-all group"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-xl text-xl flex-shrink-0">{getDisasterIcon(disaster.type, true)}</div>
+                  <div className="flex items-start gap-4">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 dark:bg-slate-800/50 flex items-center justify-center border border-primary/20 dark:border-white/5 shadow-inner flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <Zap className="h-5 w-5 text-primary" />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <h4 className="font-semibold text-sm leading-tight">{disaster.title}</h4>
-                        <Badge variant="outline" className="text-[10px] capitalize flex-shrink-0 bg-purple-500/10 border-purple-500/30">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h4 className="font-black text-[10px] tracking-[0.2em] uppercase text-foreground leading-tight">{disaster.title}</h4>
+                        <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-white/10 bg-slate-900/60 text-slate-400 px-2 py-0.5 rounded-full">
                           {disaster.severity}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground">{disaster.description}</p>
-                      <div className="flex flex-wrap gap-1 mt-2">
+                      <p className="text-[11px] text-slate-500 leading-relaxed font-medium mb-3">{disaster.description}</p>
+                      <div className="flex flex-wrap gap-2">
                         {disaster.probability !== undefined && (
-                          <Badge variant="outline" className="text-[10px] bg-purple-500/10 border-purple-400/30">
-                            {(disaster.probability * 100).toFixed(0)}% probability
-                          </Badge>
+                          <div className="text-[9px] font-black uppercase tracking-widest bg-slate-900/40 border border-white/5 px-2 py-1 rounded text-slate-400">
+                            {(disaster.probability * 100).toFixed(0)}% PROB
+                          </div>
                         )}
-                        {(disaster as any).timeframeDays !== undefined && (
-                          <Badge variant="outline" className="text-[10px] bg-blue-500/10 border-blue-400/30">
-                            {(disaster as any).timeframeDays}d window
-                          </Badge>
-                        )}
-                        {distance !== null && (
-                          <Badge variant="outline" className="text-[10px]">
-                            {distance.toFixed(0)} km
-                          </Badge>
-                        )}
-                        <Badge variant="outline" className="text-[10px] bg-muted">
-                          🤖 AI Prediction
-                        </Badge>
+                        <div className="text-[9px] font-black uppercase tracking-widest bg-slate-400/10 border border-slate-400/20 px-2 py-1 rounded text-slate-300">
+                          🧠 ML INFERENCE
+                        </div>
                       </div>
                     </div>
                   </div>

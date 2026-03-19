@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Cloud, Droplets, Wind, Thermometer, AlertCircle, Eye, MapPin, 
-  Sunrise, Sunset, Gauge, CloudRain, CloudSnow, CloudDrizzle, 
+import {
+  Cloud, Droplets, Wind, Thermometer, AlertCircle, Eye, MapPin,
+  Sunrise, Sunset, Gauge, CloudRain, CloudSnow, CloudDrizzle,
   CloudFog, Zap, Snowflake, Sun, Moon, Umbrella, Navigation, Clock
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -127,19 +127,19 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
   };
 
   const formatTime = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleTimeString('en-IN', { 
-      hour: '2-digit', 
+    return new Date(timestamp * 1000).toLocaleTimeString('en-IN', {
+      hour: '2-digit',
       minute: '2-digit',
-      hour12: true 
+      hour12: true
     });
   };
 
   const getAirQualityColor = (aqi?: number) => {
-    if (!aqi) return 'bg-gray-500/20 border-gray-500/30';
-    if (aqi === 1) return 'bg-green-500/20 border-green-500/30';
-    if (aqi === 2) return 'bg-yellow-500/20 border-yellow-500/30';
-    if (aqi === 3) return 'bg-orange-500/20 border-orange-500/30';
-    if (aqi === 4) return 'bg-red-500/20 border-red-500/30';
+    if (aqi === undefined || aqi === null) return 'bg-gray-500/20 border-gray-500/30';
+    if (aqi <= 50) return 'bg-green-500/20 border-green-500/30';
+    if (aqi <= 100) return 'bg-yellow-500/20 border-yellow-500/30';
+    if (aqi <= 150) return 'bg-orange-500/20 border-orange-500/30';
+    if (aqi <= 200) return 'bg-red-500/20 border-red-500/30';
     return 'bg-purple-500/20 border-purple-500/30';
   };
 
@@ -173,14 +173,14 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
               placeholder="Search city to view weather..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 glass border-border/30 focus:border-primary/50"
+              className="pl-10 bg-slate-50/80 dark:glass border-slate-200 dark:border-border/30 focus:border-primary/50 text-slate-700 dark:text-foreground"
             />
             {isSearching && (
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                 <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
               </div>
             )}
-            
+
             {/* Dropdown Results */}
             {showDropdown && searchResults.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
@@ -201,14 +201,14 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
                 ))}
               </div>
             )}
-            
+
             {searchQuery.trim() && !isSearching && searchResults.length === 0 && showDropdown && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 p-3">
                 <p className="text-sm text-muted-foreground text-center">No cities found</p>
               </div>
             )}
           </div>
-          
+
           {userLocation && weather && (
             <p className="text-xs text-muted-foreground text-center">
               Showing weather for: {weather.location.name || `${weather.location.lat.toFixed(4)}, ${weather.location.lng.toFixed(4)}`}
@@ -243,163 +243,155 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
 
         {/* Detailed Weather Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/30">
-            <div className="p-2 rounded-lg bg-ocean-blue/10">
-              <Droplets className="h-5 w-5 text-ocean-blue" />
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 transition-all hover:bg-slate-200/60 dark:hover:bg-slate-900/60">
+            <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/10">
+              <Droplets className="h-5 w-5 text-blue-400" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Humidity</p>
-              <p className="font-semibold text-lg">{weather.humidity}%</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Humidity</p>
+              <p className="font-mono text-lg font-bold text-slate-700 dark:text-slate-200">{weather.humidity}%</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/30">
-            <div className="p-2 rounded-lg bg-primary/10">
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 transition-all hover:bg-slate-200/60 dark:hover:bg-slate-900/60">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/10">
               <Wind className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Wind Speed</p>
-              <p className="font-semibold text-lg">{weather.windSpeed} km/h</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Wind Velocity</p>
+              <p className="font-mono text-lg font-bold text-slate-700 dark:text-slate-200">{weather.windSpeed} km/h</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/30">
-            <div className="p-2 rounded-lg bg-success/10">
-              <CloudRain className="h-5 w-5 text-success" />
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 transition-all hover:bg-slate-200/60 dark:hover:bg-slate-900/60">
+            <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/10">
+              <CloudRain className="h-5 w-5 text-emerald-400" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Rainfall</p>
-              <p className="font-semibold text-lg">{weather.rainfall} mm</p>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Precipitation</p>
+              <p className="font-mono text-lg font-bold text-slate-700 dark:text-slate-200">{weather.rainfall} mm</p>
             </div>
           </div>
 
           {weather.visibility !== undefined && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/30">
-              <div className="p-2 rounded-lg bg-warning/10">
-                <Eye className="h-5 w-5 text-warning" />
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200/50 dark:border-white/5 transition-all hover:bg-slate-200/60 dark:hover:bg-slate-900/60">
+              <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/10">
+                <Eye className="h-5 w-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Visibility</p>
-                <p className="font-semibold text-lg">{weather.visibility} km</p>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Visibility</p>
+                <p className="font-mono text-lg font-bold text-slate-700 dark:text-slate-200">{weather.visibility} km</p>
               </div>
             </div>
           )}
 
           {weather.pressure && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/30">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-100/50 dark:bg-card/50 border border-slate-200/50 dark:border-border/30">
               <div className="p-2 rounded-lg bg-accent/10">
                 <Gauge className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Pressure</p>
-                <p className="font-semibold text-lg">{weather.pressure} hPa</p>
+                <p className="text-xs text-slate-500">Pressure</p>
+                <p className="font-semibold text-lg text-slate-700 dark:text-foreground">{weather.pressure} hPa</p>
               </div>
             </div>
           )}
 
           {weather.sunrise && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/30">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-100/50 dark:bg-card/50 border border-slate-200/50 dark:border-border/30">
               <div className="p-2 rounded-lg bg-amber-500/10">
                 <Sunrise className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Sunrise</p>
-                <p className="font-semibold text-lg">{formatTime(weather.sunrise)}</p>
+                <p className="text-xs text-slate-500">Sunrise</p>
+                <p className="font-semibold text-lg text-slate-700 dark:text-foreground">{formatTime(weather.sunrise)}</p>
               </div>
             </div>
           )}
 
           {weather.sunset && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/30">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-100/50 dark:bg-card/50 border border-slate-200/50 dark:border-border/30">
               <div className="p-2 rounded-lg bg-orange-500/10">
                 <Sunset className="h-5 w-5 text-orange-500" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Sunset</p>
-                <p className="font-semibold text-lg">{formatTime(weather.sunset)}</p>
+                <p className="text-xs text-slate-500">Sunset</p>
+                <p className="font-semibold text-lg text-slate-700 dark:text-foreground">{formatTime(weather.sunset)}</p>
               </div>
             </div>
           )}
 
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/30">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-100/50 dark:bg-card/50 border border-slate-200/50 dark:border-border/30">
             <div className="p-2 rounded-lg bg-purple-500/10">
               <Navigation className="h-5 w-5 text-purple-500" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Wind Dir.</p>
-              <p className="font-semibold text-lg">{getWindDirection(weather.windDirection)}</p>
+              <p className="text-xs text-slate-500">Wind Dir.</p>
+              <p className="font-semibold text-lg text-slate-700 dark:text-foreground">{getWindDirection(weather.windDirection)}</p>
             </div>
           </div>
         </div>
 
         {/* UV Index & Air Quality */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-          <div className={`p-4 rounded-xl border ${getUVColor(weather.uvIndex)}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Sun className="h-5 w-5 text-amber-500" />
-                <span className="font-semibold">UV Index</span>
+          {weather.uvIndex !== undefined && (
+            <div className={`p-4 rounded-xl border ${getUVColor(weather.uvIndex)}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Sun className="h-5 w-5 text-amber-500" />
+                  <span className="font-semibold">UV Index</span>
+                </div>
+                <Badge variant="outline" className={getUVColor(weather.uvIndex)}>
+                  {getUVLabel(weather.uvIndex)}
+                </Badge>
               </div>
-              <Badge variant="outline" className={getUVColor(weather.uvIndex)}>
-                {getUVLabel(weather.uvIndex)}
-              </Badge>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-2xl font-bold">{weather.uvIndex !== undefined ? weather.uvIndex.toFixed(1) : 'N/A'}</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-2xl font-bold">{weather.uvIndex.toFixed(1)}</span>
+                </div>
+                <Progress value={Math.min(weather.uvIndex * 10, 100)} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  {weather.uvIndex < 3 ? 'Minimal protection needed' :
+                    weather.uvIndex < 6 ? 'Use sun protection if outdoors' :
+                      weather.uvIndex < 8 ? 'Protection essential. Reduce sun exposure' :
+                        'Avoid sun exposure. Take all precautions'}
+                </p>
               </div>
-              {weather.uvIndex !== undefined ? (
-                <>
-                  <Progress value={Math.min(weather.uvIndex * 10, 100)} className="h-2" />
-                  <p className="text-xs text-muted-foreground">
-                    {weather.uvIndex < 3 ? 'Minimal protection needed' :
-                     weather.uvIndex < 6 ? 'Use sun protection if outdoors' :
-                     weather.uvIndex < 8 ? 'Protection essential. Reduce sun exposure' :
-                     'Avoid sun exposure. Take all precautions'}
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">UV Index data not available</p>
-              )}
             </div>
-          </div>
+          )}
 
-          <div className={`p-4 rounded-xl border ${getAirQualityColor(weather.airQuality?.aqi)}`}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Wind className="h-5 w-5" />
-                <span className="font-semibold">Air Quality</span>
+          {weather.airQuality && (
+            <div className={`p-4 rounded-xl border ${getAirQualityColor(weather.airQuality.aqi)}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Wind className="h-5 w-5" />
+                  <span className="font-semibold">Air Quality</span>
+                </div>
+                <Badge variant="outline" className={getAirQualityColor(weather.airQuality.aqi)}>
+                  {weather.airQuality.quality || 'Unknown'}
+                </Badge>
               </div>
-              <Badge variant="outline" className={getAirQualityColor(weather.airQuality?.aqi)}>
-                {weather.airQuality?.quality || 'Unknown'}
-              </Badge>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-3xl font-bold">{weather.airQuality?.aqi !== undefined ? weather.airQuality.aqi : 'N/A'}</span>
-                <span className="text-sm text-muted-foreground">US EPA AQI</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-3xl font-bold">{weather.airQuality.aqi}</span>
+                  <span className="text-sm text-muted-foreground">US EPA AQI</span>
+                </div>
+                <Progress value={Math.min((weather.airQuality.aqi / 500) * 100, 100)} className="h-2" />
+                <p className="text-xs text-muted-foreground">
+                  {weather.airQuality.aqi <= 50 ? 'Air quality is excellent. Perfect for outdoor activities' :
+                    weather.airQuality.aqi <= 100 ? 'Air quality is acceptable for most people' :
+                      weather.airQuality.aqi <= 150 ? 'Sensitive groups should limit outdoor exposure' :
+                        weather.airQuality.aqi <= 200 ? 'Unhealthy. Limit prolonged outdoor exertion' :
+                          weather.airQuality.aqi <= 300 ? 'Very unhealthy. Avoid outdoor activities' :
+                            'Hazardous. Stay indoors'}
+                </p>
+                <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                  <div>PM2.5: {weather.airQuality.pm25.toFixed(1)} µg/m³</div>
+                  <div>PM10: {weather.airQuality.pm10.toFixed(1)} µg/m³</div>
+                </div>
               </div>
-              {weather.airQuality?.aqi !== undefined ? (
-                <>
-                  <Progress value={Math.min((weather.airQuality.aqi / 500) * 100, 100)} className="h-2" />
-                  <p className="text-xs text-muted-foreground">
-                    {weather.airQuality.aqi <= 50 ? 'Air quality is excellent. Perfect for outdoor activities' :
-                     weather.airQuality.aqi <= 100 ? 'Air quality is acceptable for most people' :
-                     weather.airQuality.aqi <= 150 ? 'Sensitive groups should limit outdoor exposure' :
-                     weather.airQuality.aqi <= 200 ? 'Unhealthy. Limit prolonged outdoor exertion' :
-                     weather.airQuality.aqi <= 300 ? 'Very unhealthy. Avoid outdoor activities' :
-                     'Hazardous. Stay indoors'}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
-                    <div>PM2.5: {weather.airQuality.pm25.toFixed(1)} µg/m³</div>
-                    <div>PM10: {weather.airQuality.pm10.toFixed(1)} µg/m³</div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">Air quality data not available</p>
-              )}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Comfort Index */}
@@ -410,21 +402,21 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
               <span className="font-semibold">Comfort Level</span>
             </div>
             <span className="text-sm font-medium text-primary">
-              {weather.temperature > 35 ? 'Very Hot' : 
-               weather.temperature > 30 ? 'Hot' :
-               weather.temperature > 25 ? 'Comfortable' :
-               weather.temperature > 15 ? 'Cool' : 'Cold'}
+              {weather.temperature > 35 ? 'Very Hot' :
+                weather.temperature > 30 ? 'Hot' :
+                  weather.temperature > 25 ? 'Comfortable' :
+                    weather.temperature > 15 ? 'Cool' : 'Cold'}
             </span>
           </div>
-          <Progress 
-            value={Math.max(0, Math.min(100, (35 - Math.abs(weather.temperature - 25)) * 2))} 
+          <Progress
+            value={Math.max(0, Math.min(100, (35 - Math.abs(weather.temperature - 25)) * 2))}
             className="h-2"
           />
           <p className="text-xs text-muted-foreground mt-2">
             {weather.temperature > 30 ? 'Stay hydrated and avoid prolonged sun exposure' :
-             weather.temperature > 25 ? 'Perfect weather for outdoor activities' :
-             weather.temperature > 15 ? 'Light jacket recommended' :
-             'Wear warm clothing'}
+              weather.temperature > 25 ? 'Perfect weather for outdoor activities' :
+                weather.temperature > 15 ? 'Light jacket recommended' :
+                  'Wear warm clothing'}
           </p>
         </div>
       </Card>
@@ -447,23 +439,23 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
               }))}>
                 <defs>
                   <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                <XAxis 
-                  dataKey="time" 
+                <XAxis
+                  dataKey="time"
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                   interval="preserveStartEnd"
                 />
-                <YAxis 
+                <YAxis
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                   label={{ value: 'Temperature (°C)', angle: -90, position: 'insideLeft' }}
                 />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
@@ -471,10 +463,10 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
                   }}
                   labelStyle={{ color: 'hsl(var(--foreground))' }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="temperature" 
-                  stroke="hsl(var(--primary))" 
+                <Area
+                  type="monotone"
+                  dataKey="temperature"
+                  stroke="hsl(var(--primary))"
                   fill="url(#tempGradient)"
                   strokeWidth={2}
                 />
@@ -485,17 +477,17 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
           {/* Hourly Details Grid */}
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3 max-h-72 sm:max-h-96 overflow-y-auto">
             {weather.hourlyForecast.map((hour, index) => (
-              <div 
+              <div
                 key={index}
-                className="text-center p-3 rounded-lg bg-card/50 border border-border/30 hover:border-primary/30 transition-all"
+                className="text-center p-3 rounded-lg bg-slate-50/50 dark:bg-card/50 border border-slate-200/50 dark:border-border/30 hover:border-primary/30 transition-all"
               >
-                <p className="text-xs font-semibold text-muted-foreground mb-2">
+                <p className="text-xs font-semibold text-slate-500 dark:text-muted-foreground mb-2">
                   {formatTime(hour.time)}
                 </p>
                 <div className="flex justify-center mb-2">
                   {hour.icon ? (
-                    <img 
-                      src={`https://openweathermap.org/img/wn/${hour.icon}@2x.png`} 
+                    <img
+                      src={`https://openweathermap.org/img/wn/${hour.icon}@2x.png`}
                       alt={hour.condition}
                       className="w-12 h-12"
                     />
@@ -503,16 +495,16 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
                     <span className="text-2xl">☀️</span>
                   )}
                 </div>
-                <p className="font-bold text-lg mb-1">{hour.temperature}°</p>
-                <p className="text-xs text-muted-foreground mb-1">{hour.condition}</p>
+                <p className="font-bold text-lg mb-1 text-slate-700 dark:text-foreground">{hour.temperature}°</p>
+                <p className="text-xs text-slate-500 dark:text-muted-foreground mb-1">{hour.condition}</p>
                 {hour.precipitation > 0 && (
-                  <div className="flex items-center justify-center gap-1 mt-2 p-1 rounded bg-ocean-blue/10">
-                    <Droplets className="h-3 w-3 text-ocean-blue" />
-                    <p className="text-xs font-medium text-ocean-blue">{hour.precipitation}%</p>
+                  <div className="flex items-center justify-center gap-1 mt-2 p-1 rounded bg-teal-500/10">
+                    <Droplets className="h-3 w-3 text-teal-600" />
+                    <p className="text-xs font-medium text-teal-600">{hour.precipitation}%</p>
                   </div>
                 )}
                 {hour.rain > 0 && (
-                  <p className="text-xs text-ocean-blue mt-1">{hour.rain.toFixed(1)}mm</p>
+                  <p className="text-xs text-teal-600 mt-1">{hour.rain.toFixed(1)}mm</p>
                 )}
               </div>
             ))}
@@ -534,7 +526,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
           </div>
           <div className="space-y-4">
             {weather.alerts.map((alert) => (
-              <div 
+              <div
                 key={alert.id}
                 className={`p-5 rounded-xl border-2 transition-all hover:shadow-lg ${getAlertSeverityColor(alert.severity)}`}
               >
@@ -572,8 +564,8 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4">
           {weather.forecast.slice(0, 5).map((day, index) => (
-            <div 
-              key={index} 
+            <div
+              key={index}
               className="text-center p-4 rounded-xl bg-gradient-to-br from-card/50 to-card/30 border border-border/30 hover:border-primary/30 transition-all hover:shadow-lg"
             >
               <p className="text-sm font-semibold text-foreground mb-2">
@@ -588,13 +580,13 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
                   <p className="font-bold text-lg">{day.temperature.max}°</p>
                 </div>
                 <div className="flex items-center justify-center gap-2">
-                  <Snowflake className="h-4 w-4 text-ocean-blue" />
+                  <Snowflake className="h-4 w-4 text-teal-500" />
                   <p className="text-sm text-muted-foreground">{day.temperature.min}°</p>
                 </div>
                 {day.rainfall > 0 && (
-                  <div className="flex items-center justify-center gap-1 mt-2 p-1 rounded bg-ocean-blue/10">
-                    <Umbrella className="h-3 w-3 text-ocean-blue" />
-                    <p className="text-xs font-medium text-ocean-blue">{day.rainfall}mm</p>
+                  <div className="flex items-center justify-center gap-1 mt-2 p-1 rounded bg-teal-500/10">
+                    <Umbrella className="h-3 w-3 text-teal-600" />
+                    <p className="text-xs font-medium text-teal-600">{day.rainfall}mm</p>
                   </div>
                 )}
               </div>

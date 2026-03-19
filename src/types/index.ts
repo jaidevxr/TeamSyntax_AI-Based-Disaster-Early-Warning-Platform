@@ -43,11 +43,15 @@ export interface WeatherData {
   sunrise?: number;
   sunset?: number;
   isDay?: number;
+  elevation?: number;
   airQuality?: {
     aqi: number;
-    quality: string;
+    quality?: string;
     pm25: number;
     pm10: number;
+    no2?: number;
+    so2?: number;
+    o3?: number;
   };
   hourlyForecast?: HourlyForecast[];
 }

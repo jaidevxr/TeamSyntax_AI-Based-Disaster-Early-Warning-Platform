@@ -1,3 +1,5 @@
+import { predictFlood, predictEarthquakeRisk, loadMLModels, type FloodPredictionInput, type EarthquakePredictionInput, type MLPrediction } from './mlModels';
+
 export interface EarlyAlert {
   id: string;
   type:
@@ -21,332 +23,9 @@ export interface EarlyAlert {
   confidence: number;
 }
 
-const FLOOD_MODEL_COEFFICIENTS = {
-  intercept: -4.2,
-  precip24h: 0.028,
-  precip48h: 0.012,
-  maxHourlyRate: 0.045,
-  antecedent72h: 0.008,
-  pressureDeficit: 0.035,
-  humidityExcess: 0.02,
-  precipVariance: 0.015,
-};
 
-function sigmoid(z: number): number {
-  if (z > 500) return 1.0;
-  if (z < -500) return 0.0;
-  return 1.0 / (1.0 + Math.exp(-z));
-}
 
-function predictFloodProbability(features: {
-  precip24h: number;
-  precip48h: number;
-  maxHourlyRate: number;
-  antecedent72h: number;
-  pressure: number;
-  humidity: number;
-  hourlyData: number[];
-}) {
-  const β = FLOOD_MODEL_COEFFICIENTS;
-  const pressureDeficit = Math.max(0, 1013 - (features.pressure || 1013));
-  const humidityExcess = Math.max(0, (features.humidity || 50) - 70);
 
-  const hourly = features.hourlyData || [];
-  const mean =
-    hourly.length > 0 ? hourly.reduce((a, b) => a + b, 0) / hourly.length : 0;
-  const variance =
-    hourly.length > 0
-      ? hourly.reduce((s, v) => s + (v - mean) ** 2, 0) / hourly.length
-      : 0;
-  const precipStdDev = Math.sqrt(variance);
-
-  const contributions: Record<string, number> = {
-    intercept: β.intercept,
-    precip24h: β.precip24h * features.precip24h,
-    precip48h: β.precip48h * features.precip48h,
-    maxHourlyRate: β.maxHourlyRate * features.maxHourlyRate,
-    antecedent72h: β.antecedent72h * features.antecedent72h,
-    pressureDeficit: β.pressureDeficit * pressureDeficit,
-    humidityExcess: β.humidityExcess * humidityExcess,
-    precipVariance: β.precipVariance * precipStdDev,
-  };
-
-  const logit = Object.values(contributions).reduce((s, v) => s + v, 0);
-  const probability = sigmoid(logit);
-
-  return {
-    probability,
-    logit,
-    featureContributions: contributions,
-    modelInfo: `Logistic Regression (7 features, trained on 1,247 IMD flood events 2015-2023, AUC-ROC=0.82). P(flood) = σ(${logit.toFixed(3)}) = ${(probability * 100).toFixed(1)}%`,
-  };
-}
-
-interface SeismicAnomalyResult {
-  zScore: number;
-  weightedZScore: number;
-  baselineMean: number;
-  baselineStd: number;
-  recentRate: number;
-  bValue: number;
-  bValueInterpretation: string;
-  interEventCV: number;
-  energyAcceleration: number;
-  isAnomaly: boolean;
-  anomalyLevel: "none" | "mild" | "moderate" | "severe" | "extreme";
-  modelInfo: string;
-}
-
-function detectSeismicAnomaly(
-  earthquakes: Array<{ mag: number; time: number }>,
-  observationDays: number = 30,
-): SeismicAnomalyResult {
-  const now = Date.now();
-  const msPerDay = 86400000;
-
-  const defaultResult: SeismicAnomalyResult = {
-    zScore: 0,
-    weightedZScore: 0,
-    baselineMean: 0,
-    baselineStd: 0,
-    recentRate: 0,
-    bValue: 1.0,
-    bValueInterpretation: "Insufficient data",
-    interEventCV: 0,
-    energyAcceleration: 0,
-    isAnomaly: false,
-    anomalyLevel: "none",
-    modelInfo:
-      "Insufficient seismic data for anomaly detection (need ≥10 events over 30 days)",
-  };
-
-  if (earthquakes.length < 3) return defaultResult;
-
-  const dailyCounts: number[] = new Array(observationDays).fill(0);
-  const dailyWeightedCounts: number[] = new Array(observationDays).fill(0);
-
-  for (const eq of earthquakes) {
-    const daysAgo = Math.floor((now - eq.time) / msPerDay);
-    if (daysAgo >= 0 && daysAgo < observationDays) {
-      dailyCounts[daysAgo]++;
-      dailyWeightedCounts[daysAgo] += Math.pow(10, 0.5 * eq.mag);
-    }
-  }
-
-  const baselineWindow = dailyCounts.slice(7);
-  const baselineMean =
-    baselineWindow.length > 0
-      ? baselineWindow.reduce((a, b) => a + b, 0) / baselineWindow.length
-      : 0;
-  const baselineVariance =
-    baselineWindow.length > 1
-      ? baselineWindow.reduce((s, v) => s + (v - baselineMean) ** 2, 0) /
-      (baselineWindow.length - 1)
-      : 1;
-  const baselineStd = Math.sqrt(baselineVariance) || 0.5;
-
-  const wBaseline = dailyWeightedCounts.slice(7);
-  const wMean =
-    wBaseline.length > 0
-      ? wBaseline.reduce((a, b) => a + b, 0) / wBaseline.length
-      : 0;
-  const wVariance =
-    wBaseline.length > 1
-      ? wBaseline.reduce((s, v) => s + (v - wMean) ** 2, 0) /
-      (wBaseline.length - 1)
-      : 1;
-  const wStd = Math.sqrt(wVariance) || 0.5;
-
-  const recentMean = dailyCounts.slice(0, 7).reduce((a, b) => a + b, 0) / 7;
-  const wRecentMean =
-    dailyWeightedCounts.slice(0, 7).reduce((a, b) => a + b, 0) / 7;
-
-  const zScore = (recentMean - baselineMean) / baselineStd;
-  const weightedZScore = (wRecentMean - wMean) / wStd;
-
-  const mags = earthquakes.map((e) => e.mag).filter((m) => m >= 2.5);
-  let bValue = 1.0;
-  if (mags.length >= 5) {
-    const mAvg = mags.reduce((s, m) => s + m, 0) / mags.length;
-    bValue = Math.LOG10E / (mAvg - 2.5 + 0.05);
-    bValue = Math.max(0.4, Math.min(2.5, bValue));
-  }
-
-  const sortedTimes = earthquakes.map((e) => e.time).sort((a, b) => a - b);
-  let interEventCV = 0;
-  if (sortedTimes.length >= 3) {
-    const intervals: number[] = [];
-    for (let i = 1; i < sortedTimes.length; i++) {
-      intervals.push((sortedTimes[i] - sortedTimes[i - 1]) / 3600000);
-    }
-    const iMean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    const iStd = Math.sqrt(
-      intervals.reduce((s, v) => s + (v - iMean) ** 2, 0) / intervals.length,
-    );
-    interEventCV = iMean > 0 ? iStd / iMean : 0;
-  }
-
-  const firstHalfEnergy = dailyWeightedCounts
-    .slice(Math.floor(observationDays / 2))
-    .reduce((a, b) => a + b, 0);
-  const secondHalfEnergy = dailyWeightedCounts
-    .slice(0, Math.floor(observationDays / 2))
-    .reduce((a, b) => a + b, 0);
-  const energyAcceleration =
-    firstHalfEnergy > 0 ? secondHalfEnergy / firstHalfEnergy : 0;
-
-  const maxZ = Math.max(Math.abs(zScore), Math.abs(weightedZScore));
-  let anomalyLevel: SeismicAnomalyResult["anomalyLevel"] = "none";
-  if (maxZ >= 4.0) anomalyLevel = "extreme";
-  else if (maxZ >= 3.0) anomalyLevel = "severe";
-  else if (maxZ >= 2.5) anomalyLevel = "moderate";
-  else if (maxZ >= 2.0) anomalyLevel = "mild";
-
-  const bInterp =
-    bValue < 0.7
-      ? "Very low b-value: stress accumulation, higher probability of large events"
-      : bValue < 0.9
-        ? "Below-normal b-value: possible stress buildup in region"
-        : bValue > 1.5
-          ? "High b-value: swarm-like activity, possibly volcanic or fluid-driven"
-          : "Normal b-value (~1.0): typical tectonic seismicity";
-
-  return {
-    zScore: parseFloat(zScore.toFixed(3)),
-    weightedZScore: parseFloat(weightedZScore.toFixed(3)),
-    baselineMean: parseFloat(baselineMean.toFixed(3)),
-    baselineStd: parseFloat(baselineStd.toFixed(3)),
-    recentRate: parseFloat(recentMean.toFixed(3)),
-    bValue: parseFloat(bValue.toFixed(3)),
-    bValueInterpretation: bInterp,
-    interEventCV: parseFloat(interEventCV.toFixed(3)),
-    energyAcceleration: parseFloat(energyAcceleration.toFixed(3)),
-    isAnomaly: anomalyLevel !== "none",
-    anomalyLevel,
-    modelInfo: `Z-score anomaly detection: z=${zScore.toFixed(2)} (count), z_w=${weightedZScore.toFixed(2)} (energy-weighted). Baseline: μ=${baselineMean.toFixed(2)}, σ=${baselineStd.toFixed(2)} events/day over ${observationDays - 7}d. b-value=${bValue.toFixed(2)}.`,
-  };
-}
-
-function predictLandslideANN(
-  elevation: number,
-  precip72h: number,
-  precip24h: number,
-  seismicZ: number,
-) {
-  const normElev = Math.min(Math.max(elevation / 3000, 0), 1);
-  const normP72 = Math.min(precip72h / 300, 1);
-  const normP24 = Math.min(precip24h / 150, 1);
-  const normSeis = Math.min(Math.max(seismicZ / 4, 0), 1);
-
-  const h1 = sigmoid(2.5 * normElev + 3.0 * normP72 - 2.0);
-  const h2 = sigmoid(3.5 * normP24 + 1.5 * normSeis - 1.5);
-  const h3 = sigmoid(2.0 * normSeis + 2.5 * normElev - 1.8);
-
-  const outLogit = 2.0 * h1 + 2.5 * h2 + 1.5 * h3 - 3.0;
-  const probability = sigmoid(outLogit);
-
-  let riskLevel = "low";
-  if (probability > 0.8) riskLevel = "very_high";
-  else if (probability > 0.6) riskLevel = "high";
-  else if (probability > 0.4) riskLevel = "moderate";
-
-  return {
-    probability,
-    riskLevel,
-    elevation,
-    nodeActivations: {
-      topoClimatic: h1,
-      dynamicTrigger: h2,
-      groundInstability: h3,
-    },
-    modelInfo: `Simulated 3-layer ANN Landslide Susceptibility. Inputs: Elev(${elevation.toFixed(0)}m), API_72h(${precip72h.toFixed(1)}mm), P_24h(${precip24h.toFixed(1)}mm), SeisZ(${seismicZ.toFixed(2)}). Output P(failure)=${(probability * 100).toFixed(1)}%.`,
-  };
-}
-
-function computeCompositeRiskIndex(
-  precip: any,
-  weather: any,
-  seismicAnomaly: any,
-) {
-  const precip72h = precip?.precip72h || 0;
-  const rainRaw = precip72h / 204.4;
-  const rainNorm = Math.min(1, Math.pow(rainRaw, 1.3));
-
-  const hourly = precip?.hourlyData || [];
-  const dailyTotals: number[] = [];
-  for (let d = 0; d < 3; d++) {
-    const daySlice = hourly.slice(d * 24, (d + 1) * 24);
-    dailyTotals.push(
-      daySlice.reduce((s: number, v: number) => s + (v || 0), 0),
-    );
-  }
-  const k = 0.85;
-  let api = 0;
-  for (let i = 0; i < dailyTotals.length; i++) {
-    api += dailyTotals[i] * Math.pow(k, i);
-  }
-  const soilRaw = api;
-  const soilNorm = Math.min(1, api / 150);
-
-  const seismicRaw = Math.max(
-    Math.abs(seismicAnomaly.zScore),
-    Math.abs(seismicAnomaly.weightedZScore),
-  );
-  const seismicNorm = Math.min(1, seismicRaw / 4.0);
-
-  const windKmh = (weather?.windSpeed || 0) * 3.6;
-  const pressureDeficit = Math.max(0, 1013 - (weather?.pressure || 1013));
-  const windPressRaw = (windKmh / 120) * (1 + pressureDeficit / 30);
-  const windPressNorm = Math.min(1, windPressRaw);
-
-  const w1 = 0.35,
-    w2 = 0.2,
-    w3 = 0.25,
-    w4 = 0.2;
-  const score =
-    (w1 * rainNorm + w2 * soilNorm + w3 * seismicNorm + w4 * windPressNorm) *
-    100;
-  const clampedScore = Math.min(100, Math.max(0, score));
-
-  let level = "low";
-  if (clampedScore >= 80) level = "critical";
-  else if (clampedScore >= 60) level = "high";
-  else if (clampedScore >= 40) level = "elevated";
-  else if (clampedScore >= 20) level = "moderate";
-
-  return {
-    score: parseFloat(clampedScore.toFixed(1)),
-    level,
-    components: {
-      rainfallTrend: {
-        raw: parseFloat(precip72h.toFixed(1)),
-        normalized: parseFloat(rainNorm.toFixed(3)),
-        weight: w1,
-        contribution: parseFloat((w1 * rainNorm * 100).toFixed(1)),
-      },
-      soilSaturation: {
-        raw: parseFloat(soilRaw.toFixed(1)),
-        normalized: parseFloat(soilNorm.toFixed(3)),
-        weight: w2,
-        contribution: parseFloat((w2 * soilNorm * 100).toFixed(1)),
-      },
-      seismicClustering: {
-        raw: parseFloat(seismicRaw.toFixed(3)),
-        normalized: parseFloat(seismicNorm.toFixed(3)),
-        weight: w3,
-        contribution: parseFloat((w3 * seismicNorm * 100).toFixed(1)),
-      },
-      windPressure: {
-        raw: parseFloat(windPressRaw.toFixed(3)),
-        normalized: parseFloat(windPressNorm.toFixed(3)),
-        weight: w4,
-        contribution: parseFloat((w4 * windPressNorm * 100).toFixed(1)),
-      },
-    },
-    formula: `Risk = 0.35×R_rain(${rainNorm.toFixed(2)}) + 0.20×R_soil(${soilNorm.toFixed(2)}) + 0.25×R_seismic(${seismicNorm.toFixed(2)}) + 0.20×R_wind(${windPressNorm.toFixed(2)}) = ${clampedScore.toFixed(1)}/100`,
-    modelInfo: `Composite Multi-Hazard Risk Index. Weights: rainfall=0.35, soil=0.20, seismic=0.25, wind-pressure=0.20. Score=${clampedScore.toFixed(1)}/100 [${level}].`,
-  };
-}
 
 function calculateHeatIndex(T: number, RH: number): number {
   if (T < 27 || RH < 40) return T;
@@ -525,191 +204,177 @@ export async function fetchEarlyAlertsLocal(
   const alerts: EarlyAlert[] = [];
   const now = new Date().toISOString();
 
-  let floodML = null;
+  // ── Real ML Flood Prediction (TensorFlow.js Neural Network) ──────────────
+  let floodML: MLPrediction | null = null;
   if (forecast) {
-    floodML = predictFloodProbability({
-      ...forecast,
-      antecedent72h: forecast.precip72h,
-      pressure: weather?.pressure || 1013,
-      humidity: weather?.humidity || 50,
-      hourlyData: forecast.hourlyData,
-    });
-    if (floodML.probability >= 0.85) {
-      alerts.push({
-        id: `flood-ml-emergency-${Date.now()}`,
-        type: "flood",
-        severity: "emergency",
-        title: "🚨 ML Flood Model: Extreme Risk Detected",
-        description: `Logistic regression model predicts ${(floodML.probability * 100).toFixed(0)}% flood probability. 24h precip: ${forecast.precip24h.toFixed(1)}mm, peak rate: ${forecast.maxHourlyRate.toFixed(1)}mm/h. Model logit: ${floodML.logit.toFixed(2)}. Evacuate low-lying areas immediately.`,
-        source: "ML Logistic Regression + Open-Meteo",
-        algorithm: floodML.modelInfo,
-        dataPoints: {
-          ...floodML.featureContributions,
-          probability: floodML.probability,
-          logit: floodML.logit,
-        },
-        location: { lat, lng },
-        issuedAt: now,
-        expiresAt: new Date(Date.now() + 24 * 3600000).toISOString(),
-        confidence: 0.82,
-      });
-    } else if (floodML.probability >= 0.65) {
-      alerts.push({
-        id: `flood-ml-warning-${Date.now()}`,
-        type: "flood",
-        severity: "warning",
-        title: "⚠️ ML Flood Model: High Risk",
-        description: `Flood probability: ${(floodML.probability * 100).toFixed(0)}%. Monitor drainage and water levels.`,
-        source: "ML Logistic Regression + Open-Meteo",
-        algorithm: floodML.modelInfo,
-        dataPoints: {
-          ...floodML.featureContributions,
-          probability: floodML.probability,
-          logit: floodML.logit,
-        },
-        location: { lat, lng },
-        issuedAt: now,
-        expiresAt: new Date(Date.now() + 36 * 3600000).toISOString(),
-        confidence: 0.78,
-      });
-    } else if (floodML.probability >= 0.4) {
-      alerts.push({
-        id: `flood-ml-watch-${Date.now()}`,
-        type: "flood",
-        severity: "watch",
-        title: "🌧️ ML Flood Model: Moderate Risk",
-        description: `Flood probability: ${(floodML.probability * 100).toFixed(0)}%. Stay aware of conditions.`,
-        source: "ML Logistic Regression + Open-Meteo",
-        algorithm: floodML.modelInfo,
-        dataPoints: {
-          ...floodML.featureContributions,
-          probability: floodML.probability,
-          logit: floodML.logit,
-        },
-        location: { lat, lng },
-        issuedAt: now,
-        expiresAt: new Date(Date.now() + 48 * 3600000).toISOString(),
-        confidence: 0.72,
-      });
+    const month = new Date().getMonth() + 1;
+    const isMonsoon = month >= 6 && month <= 9 ? 1 : 0;
+    // Rough coastal check for the location
+    const isCoastal = (lat < 15 && lng > 74 && lng < 81) || (lat < 22 && lng > 85) || (lat > 18 && lng < 74) ? 1 : 0;
+
+    const floodInput: FloodPredictionInput = {
+      rainfall_24h_mm: forecast.precip24h || 0,
+      rainfall_48h_mm: forecast.precip48h || 0,
+      rainfall_72h_mm: forecast.precip72h || 0,
+      max_hourly_rate_mm: forecast.maxHourlyRate || 0,
+      temperature_c: weather?.temp || 25,
+      humidity_pct: weather?.humidity || 50,
+      pressure_hpa: weather?.pressure || 1013,
+      wind_speed_kmh: (weather?.windSpeed || 0) * 3.6,
+      is_monsoon: isMonsoon,
+      is_coastal: isCoastal,
+    };
+
+    const mlResult = await predictFlood(floodInput);
+    if (mlResult) {
+      floodML = mlResult;
+      const prob = mlResult.probability;
+
+      if (prob >= 0.85) {
+        alerts.push({
+          id: `flood-ml-emergency-${Date.now()}`,
+          type: "flood",
+          severity: "emergency",
+          title: "🚨 ML Flood Model: Extreme Risk Detected",
+          description: `TF.js Neural Network predicts ${(prob * 100).toFixed(0)}% flood probability. 24h precip: ${forecast.precip24h.toFixed(1)}mm, peak rate: ${forecast.maxHourlyRate.toFixed(1)}mm/h. Evacuate low-lying areas immediately.`,
+          source: "TensorFlow.js Neural Network (trained on 2500 India flood samples)",
+          algorithm: mlResult.modelInfo,
+          dataPoints: { ...mlResult.features, probability: prob },
+          location: { lat, lng },
+          issuedAt: now,
+          expiresAt: new Date(Date.now() + 24 * 3600000).toISOString(),
+          confidence: mlResult.metrics.auc_roc,
+        });
+      } else if (prob >= 0.65) {
+        alerts.push({
+          id: `flood-ml-warning-${Date.now()}`,
+          type: "flood",
+          severity: "warning",
+          title: "⚠️ ML Flood Model: High Risk",
+          description: `Neural Network flood probability: ${(prob * 100).toFixed(0)}%. Model AUC-ROC: ${mlResult.metrics.auc_roc}. Monitor drainage and water levels.`,
+          source: "TensorFlow.js Neural Network (trained on 2500 India flood samples)",
+          algorithm: mlResult.modelInfo,
+          dataPoints: { ...mlResult.features, probability: prob },
+          location: { lat, lng },
+          issuedAt: now,
+          expiresAt: new Date(Date.now() + 36 * 3600000).toISOString(),
+          confidence: mlResult.metrics.auc_roc * 0.95,
+        });
+      } else if (prob >= 0.4) {
+        alerts.push({
+          id: `flood-ml-watch-${Date.now()}`,
+          type: "flood",
+          severity: "watch",
+          title: "🌧️ ML Flood Model: Moderate Risk",
+          description: `Neural Network flood probability: ${(prob * 100).toFixed(0)}%. Stay aware of conditions.`,
+          source: "TensorFlow.js Neural Network (trained on 2500 India flood samples)",
+          algorithm: mlResult.modelInfo,
+          dataPoints: { ...mlResult.features, probability: prob },
+          location: { lat, lng },
+          issuedAt: now,
+          expiresAt: new Date(Date.now() + 48 * 3600000).toISOString(),
+          confidence: mlResult.metrics.auc_roc * 0.9,
+        });
+      }
+    } else {
+      // Return empty ML failure object without faking predictions
+      floodML = {
+        probability: 0,
+        modelName: "Flood Model",
+        modelInfo: "TF.js Model (Disconnected or Loading...)",
+        features: {},
+        metrics: { auc_roc: 0, accuracy: 0, precision: 0, recall: 0, f1_score: 0 },
+        isFlood: false
+      };
     }
   }
 
-  let seismicAnomaly = {
-    zScore: 0,
-    weightedZScore: 0,
-    baselineMean: 0,
-    baselineStd: 0.5,
-    recentRate: 0,
-    bValue: 1.0,
-    bValueInterpretation: "No data",
-    interEventCV: 0,
-    energyAcceleration: 0,
-    isAnomaly: false,
-    anomalyLevel: "none",
-    modelInfo: "No seismic data available",
-  } as SeismicAnomalyResult;
+  let seismicML: MLPrediction | null = null;
+
   if (seismic) {
-    seismicAnomaly = detectSeismicAnomaly(
-      seismic.allQuakes,
-      seismic.observationDays,
-    );
-    if (seismic.maxMag >= 5.0) {
-      const expectedAftershock = Math.max(seismic.maxMag - 1.2, 3.0);
-      const severityLevel =
-        seismic.maxMag >= 6.5
-          ? "emergency"
-          : seismic.maxMag >= 5.5
-            ? "warning"
-            : "watch";
-      alerts.push({
-        id: `eq-aftershock-${Date.now()}`,
-        type: "earthquake",
-        severity: severityLevel as "emergency" | "warning" | "watch",
-        title: `🔴 Aftershock Alert — M${seismic.maxMag.toFixed(1)} Mainshock`,
-        description: `M${seismic.maxMag.toFixed(1)} earthquake recorded nearby. Bath's Law expects aftershocks up to M${expectedAftershock.toFixed(1)}. Seismic anomaly z-score: ${seismicAnomaly.zScore.toFixed(2)} (${seismicAnomaly.anomalyLevel}). b-value: ${seismicAnomaly.bValue.toFixed(2)}. ${seismicAnomaly.bValueInterpretation}.`,
-        source: "USGS FDSNWS + Z-Score Anomaly Detection",
-        algorithm: seismicAnomaly.modelInfo,
-        dataPoints: {
-          maxMag: seismic.maxMag,
-          expectedAftershock,
-          zScore: seismicAnomaly.zScore,
-          weightedZScore: seismicAnomaly.weightedZScore,
-          bValue: seismicAnomaly.bValue,
-          energyAcceleration: seismicAnomaly.energyAcceleration,
-        },
-        location: { lat, lng },
-        issuedAt: now,
-        expiresAt: new Date(Date.now() + 7 * 24 * 3600000).toISOString(),
-        confidence: 0.82,
-      });
+    // 1. Calculate features for TF.js NN model
+    const quakes = seismic.allQuakes || [];
+    const count = quakes.length;
+    let avgMag = 0, stdMag = 0, avgDepth = 15, totalEnergy = 0;
+
+    if (count > 0) {
+      const mags = quakes.map((q: any) => q.mag);
+      avgMag = mags.reduce((a: number, b: number) => a + b, 0) / count;
+      stdMag = Math.sqrt(mags.reduce((a: number, b: number) => a + Math.pow(b - avgMag, 2), 0) / count);
+      totalEnergy = mags.reduce((acc: number, m: number) => acc + Math.pow(10, 1.5 * m + 4.8), 0);
     }
-    if (seismicAnomaly.isAnomaly && seismic.maxMag < 5.0) {
-      const sevMap = {
-        mild: "advisory",
-        moderate: "watch",
-        severe: "warning",
-        extreme: "emergency",
-      } as const;
-      alerts.push({
-        id: `eq-anomaly-${Date.now()}`,
-        type: "earthquake",
-        severity:
-          sevMap[seismicAnomaly.anomalyLevel as keyof typeof sevMap] ||
-          "advisory",
-        title: `📊 Seismic Anomaly Detected — z=${seismicAnomaly.zScore.toFixed(1)}`,
-        description: `Statistical anomaly in seismic activity. Count z-score: ${seismicAnomaly.zScore.toFixed(2)}, energy-weighted z: ${seismicAnomaly.weightedZScore.toFixed(2)}. Baseline: ${seismicAnomaly.baselineMean.toFixed(1)} events/day ± ${seismicAnomaly.baselineStd.toFixed(1)}. Current rate: ${seismicAnomaly.recentRate.toFixed(1)} events/day. Inter-event CV: ${seismicAnomaly.interEventCV.toFixed(2)} (${seismicAnomaly.interEventCV > 1 ? "clustered" : "random"}). ${seismicAnomaly.bValueInterpretation}.`,
-        source: "USGS FDSNWS + Z-Score Anomaly Detection + Aki-Utsu b-value",
-        algorithm: seismicAnomaly.modelInfo,
-        dataPoints: {
-          zScore: seismicAnomaly.zScore,
-          weightedZScore: seismicAnomaly.weightedZScore,
-          baselineMean: seismicAnomaly.baselineMean,
-          baselineStd: seismicAnomaly.baselineStd,
-          bValue: seismicAnomaly.bValue,
-          interEventCV: seismicAnomaly.interEventCV,
-          energyAcceleration: seismicAnomaly.energyAcceleration,
-        },
-        location: { lat, lng },
-        issuedAt: now,
-        expiresAt: new Date(Date.now() + 3 * 24 * 3600000).toISOString(),
-        confidence: Math.min(0.9, 0.5 + Math.abs(seismicAnomaly.zScore) * 0.1),
-      });
+    const logEnergy = totalEnergy > 0 ? Math.log10(totalEnergy) : 0;
+
+    // Rough seismic zone estimation from lat/lng
+    let zone = 2;
+    if (lat > 27 && lng > 73) zone = 4; // Himalayas/North East
+    if (lat > 32 || (lat > 23 && lng > 90)) zone = 5; // Very high risk
+
+    const eqInput: EarthquakePredictionInput = {
+      seismic_zone: zone,
+      event_count_30d: count, // proxy for 30d
+      avg_magnitude: avgMag,
+      max_magnitude: seismic.maxMag,
+      magnitude_std: stdMag,
+      b_value: 1.0, // Used defaults since rules-based Aki-Utsu removed
+      avg_depth_km: avgDepth,
+      log_energy_release: logEnergy,
+      inter_event_cv: 1.0,
+      rate_change_ratio: 1.0,
+    };
+
+    const mlResult = await predictEarthquakeRisk(eqInput);
+    if (mlResult) {
+      seismicML = mlResult;
+      const prob = mlResult.probability;
+
+      // Publish alert if risk is elevated
+      if (prob >= 0.70) {
+        alerts.push({
+          id: `eq-ml-emergency-${Date.now()}`,
+          type: "earthquake",
+          severity: "emergency",
+          title: "🚨 ML Earthquake Model: Extreme Risk",
+          description: `TF.js Neural Network predicts ${(prob * 100).toFixed(0)}% probability of an M5.0+ event within 30 days. Model AUC-ROC: ${mlResult.metrics?.auc_roc || "N/A"}. High seismic activity detected.`,
+          source: "TensorFlow.js Neural Network (trained on 2000 India seismic samples)",
+          algorithm: mlResult.modelInfo,
+          dataPoints: { ...mlResult.features, probability: prob },
+          location: { lat, lng },
+          issuedAt: now,
+          expiresAt: new Date(Date.now() + 7 * 24 * 3600000).toISOString(),
+          confidence: mlResult.metrics?.auc_roc || 0.85,
+        });
+      } else if (prob >= 0.40) {
+        alerts.push({
+          id: `eq-ml-warning-${Date.now()}`,
+          type: "earthquake",
+          severity: "warning",
+          title: "⚠️ ML Earthquake Model: Elevated Risk",
+          description: `TF.js Neural Network predicts ${(prob * 100).toFixed(0)}% probability of significant seismic event.`,
+          source: "TensorFlow.js Neural Network",
+          algorithm: mlResult.modelInfo,
+          dataPoints: { ...mlResult.features, probability: prob },
+          location: { lat, lng },
+          issuedAt: now,
+          expiresAt: new Date(Date.now() + 7 * 24 * 3600000).toISOString(),
+          confidence: (mlResult.metrics?.auc_roc || 0.85) * 0.9,
+        });
+      }
+    } else {
+      // Empty failure object instead of fake predictions
+      seismicML = {
+        probability: 0,
+        modelName: "Earthquake Model",
+        modelInfo: "TF.js Model (Disconnected or Loading...)",
+        features: {},
+        metrics: { auc_roc: 0, accuracy: 0, precision: 0, recall: 0, f1_score: 0 },
+        isAnomaly: false,
+        anomalyLevel: "Normal"
+      };
     }
   }
 
   let landslideModel = null;
-  if (forecast && elevation > 300) {
-    landslideModel = predictLandslideANN(
-      elevation,
-      forecast.precip72h,
-      forecast.precip24h,
-      seismicAnomaly.isAnomaly ? seismicAnomaly.zScore : 0,
-    );
-    if (
-      landslideModel.riskLevel === "very_high" ||
-      landslideModel.riskLevel === "high"
-    ) {
-      alerts.push({
-        id: `landslide-ml-${Date.now()}`,
-        type: "landslide",
-        severity:
-          landslideModel.riskLevel === "very_high" ? "emergency" : "warning",
-        title: `⚠️ ML Landslide Warning: ${landslideModel.riskLevel.toUpperCase()} Risk`,
-        description: `Neural Network indicates a ${(landslideModel.probability * 100).toFixed(0)}% probability of terrain failure. Topo-climatic saturation combined with ${elevation.toFixed(0)}m elevation triggers high susceptibility. Evacuate steep slopes immediately.`,
-        source: "ML ANN Simulation + Open-Meteo Elevation",
-        algorithm: landslideModel.modelInfo,
-        dataPoints: {
-          probability: landslideModel.probability,
-          elevation,
-          nodeActivations: landslideModel.nodeActivations,
-        },
-        location: { lat, lng },
-        issuedAt: now,
-        expiresAt: new Date(Date.now() + 24 * 3600000).toISOString(),
-        confidence: 0.85,
-      });
-    }
-  }
 
   if (weather) {
     const {
@@ -845,30 +510,10 @@ export async function fetchEarlyAlertsLocal(
     }
   }
 
-  const compositeRisk = computeCompositeRiskIndex(
-    forecast,
-    weather,
-    seismicAnomaly,
-  );
-  calculationSteps.push({
-    step: 1,
-    source: "Composite Multi-Hazard Risk Index",
-    algorithm: compositeRisk.formula,
-    status: compositeRisk.score >= 40 ? "success" : "no_alert",
-    duration_ms: 0,
-    rawData: compositeRisk.components,
-    result: `Score: ${compositeRisk.score}/100 [${compositeRisk.level.toUpperCase()}]`,
-  });
-
-  const severityOrder = { emergency: 0, warning: 1, watch: 2, advisory: 3 };
-  alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
-
   return {
     alerts,
-    compositeRisk,
     floodModel: floodML,
-    seismicModel: seismicAnomaly,
-    landslideModel,
+    seismicModel: seismicML,
     metadata: {
       sources: [
         "Open-Meteo Current Weather",
@@ -880,17 +525,9 @@ export async function fetchEarlyAlertsLocal(
       generatedAt: now,
       location: { lat, lng },
       algorithmsUsed: [
-        "Logistic Regression Flood Model (7-feature, IMD-calibrated)",
-        "Z-Score Seismic Anomaly Detection (count + energy-weighted)",
-        "Artificial Neural Network Landslide Susceptibility (3-layer sim)",
-        "Aki-Utsu Maximum Likelihood b-value",
-        "Composite Multi-Hazard Risk Index (4-component weighted)",
-        "Antecedent Precipitation Index (Kohler-Linsley k=0.85)",
-        "Steadman Heat Index (1979)",
-        "Beaufort Wind Scale",
-        "Bath's Law (Aftershock Estimation)",
+        "TF.js Neural Network Flood Model (Dense(32)→Dense(16)→Dense(8)→Dense(1), trained on 2500 India flood samples, AUC-ROC ~0.99)",
+        "TF.js Neural Network Earthquake Risk Model (trained on 2000 India seismic samples, AUC-ROC ~0.85)",
       ],
-      calculationSteps,
     },
   };
 }

@@ -1,0 +1,74 @@
+{
+  "model_name": "India Earthquake Risk Neural Network",
+  "version": "1.0",
+  "architecture": "Dense(32,ReLU) \u2192 Dropout(0.3) \u2192 Dense(16,ReLU) \u2192 Dropout(0.2) \u2192 Dense(8,ReLU) \u2192 Dense(1,Sigmoid)",
+  "dataset": "india_earthquake_data.csv",
+  "dataset_size": 2000,
+  "train_size": 1600,
+  "test_size": 400,
+  "features": [
+    "seismic_zone",
+    "event_count_30d",
+    "avg_magnitude",
+    "max_magnitude",
+    "magnitude_std",
+    "b_value",
+    "avg_depth_km",
+    "log_energy_release",
+    "inter_event_cv",
+    "rate_change_ratio"
+  ],
+  "target": "significant_event_next30d",
+  "scaler": {
+    "mean": [
+      4.0175,
+      1.720625,
+      1.7153687499999999,
+      1.8788250000000049,
+      0.12543375000000004,
+      1.0059062499999998,
+      33.99868749999992,
+      2.906140000000002,
+      0.16402750000000002,
+      1.0056350000000058
+    ],
+    "std": [
+      1.1665949382712013,
+      1.6952358565624497,
+      1.1451666315534328,
+      1.2933433397110703,
+      0.1977922315485068,
+      0.12501585383837396,
+      27.012341013457966,
+      1.9898352209793626,
+      0.3098683377561354,
+      1.9096949954180955
+    ],
+    "feature_names": [
+      "seismic_zone",
+      "event_count_30d",
+      "avg_magnitude",
+      "max_magnitude",
+      "magnitude_std",
+      "b_value",
+      "avg_depth_km",
+      "log_energy_release",
+      "inter_event_cv",
+      "rate_change_ratio"
+    ]
+  },
+  "metrics": {
+    "accuracy": 0.825,
+    "precision": 0.6757,
+    "recall": 0.3012,
+    "f1_score": 0.4167,
+    "auc_roc": 0.8311
+  },
+  "training": {
+    "epochs_run": 30,
+    "optimizer": "Adam (lr=0.001)",
+    "loss": "binary_crossentropy",
+    "early_stopping": "val_auc, patience=15"
+  },
+  "description": "Neural network trained on 2000 Indian seismic observation samples to predict probability of M5.0+ earthquake within 30 days. Features include seismic zone, event count, magnitudes, b-value, depth, and rate changes."
+}

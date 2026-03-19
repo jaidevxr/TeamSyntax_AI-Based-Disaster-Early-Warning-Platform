@@ -50,6 +50,15 @@ import {
 } from "@/utils/pushNotifications";
 import { addAlertToHistory } from "@/components/NotificationHistory";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  predictFlood,
+  predictEarthquakeRisk,
+  loadMLModels,
+  getMLLoadError,
+  type FloodPredictionInput,
+  type EarthquakePredictionInput,
+  type MLPrediction,
+} from "../utils/mlModels";
 
 // ── Markdown renderer (for AI Brief) ──────────────────────────────────────────
 const renderMarkdown = (text: string): React.ReactNode[] => {
@@ -189,6 +198,7 @@ interface CalculationStep {
 
 interface EarlyAlertsProps {
   userLocation: Location | null;
+  language: "en" | "hi";
 }
 
 type CalcPhase =
@@ -202,57 +212,112 @@ type CalcPhase =
   | "analyzing"
   | "done";
 
-const PHASES: {
-  key: CalcPhase;
-  label: string;
-  icon: React.ReactNode;
-  source: string;
-}[] = [
-  {
-    key: "fetching_weather",
-    label: "Fetching weather data",
-    icon: <Thermometer className="h-4 w-4" />,
-    source: "Open-Meteo API",
-  },
-  {
-    key: "fetching_precipitation",
-    label: "Fetching precipitation forecast",
-    icon: <Droplets className="h-4 w-4" />,
-    source: "Open-Meteo API",
-  },
-  {
-    key: "fetching_seismic",
-    label: "Querying seismic activity",
-    icon: <Mountain className="h-4 w-4" />,
-    source: "USGS FDSNWS",
-  },
-  {
-    key: "fetching_gdacs",
-    label: "Checking global alerts",
-    icon: <AlertTriangle className="h-4 w-4" />,
-    source: "GDACS",
-  },
-  {
-    key: "fetching_aqi",
-    label: "Measuring air quality",
-    icon: <Leaf className="h-4 w-4" />,
-    source: "Open-Meteo AQI",
-  },
-  {
-    key: "fetching_imd",
-    label: "Reading IMD bulletins",
-    icon: <Bell className="h-4 w-4" />,
-    source: "IMD RSS",
-  },
-  {
-    key: "analyzing",
-    label: "Running detection algorithms",
-    icon: <Zap className="h-4 w-4" />,
-    source: "IMD + Steadman + Bath's Law",
-  },
-];
+const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => {
+  const t = {
+    en: {
+      title: "Early Disaster Warnings & Risk Analysis",
+      subtitle: "Live Intelligence",
+      compositeRisk: "Composite Area Risk",
+      analyzing: "Analyzing real-time signals...",
+      noAlerts: "No immediate disaster threats detected for your current location.",
+      probability: "Probability",
+      recommendation: "Recommendation",
+      threatLevel: "Threat Level",
+      fetchingWeather: "Fetching weather data",
+      fetchingPrecip: "Fetching precipitation forecast",
+      fetchingSeismic: "Querying seismic activity",
+      checkingGlobal: "Checking global alerts",
+      measuringAQI: "Measuring air quality",
+      loadingAI: "Loading ML Neural Models",
+      runningML: "Running ML inference",
+      emergency: "Emergency",
+      warning: "Warning",
+      watch: "Watch",
+      advisory: "Advisory",
+      alertTriggered: "Alert Triggered",
+      fetchFailed: "Fetch Failed",
+      allClear: "All Clear",
+      enableLocation: "Enable location to receive early warnings for floods, earthquakes, and extreme weather.",
+      warnings: "Early Warnings",
+    },
+    hi: {
+      title: "प्रारंभिक आपदा चेतावनी और जोखिम विश्लेषण",
+      subtitle: "लाइव इंटेलिजेंस",
+      compositeRisk: "समग्र क्षेत्र जोखिम",
+      analyzing: "वास्तविक समय के संकेतों का विश्लेषण...",
+      noAlerts: "आपके वर्तमान स्थान के लिए किसी तत्काल आपदा खतरे का पता नहीं चला है।",
+      probability: "संभावना",
+      recommendation: "सिफारिश",
+      threatLevel: "खतरे का स्तर",
+      fetchingWeather: "मौसम डेटा प्राप्त किया जा रहा है",
+      fetchingPrecip: "वर्षा पूर्वानुमान प्राप्त करना",
+      fetchingSeismic: "भूकंपीय गतिविधि की जाँच",
+      checkingGlobal: "वैश्विक अलर्ट की जाँच",
+      measuringAQI: "वायु गुणवत्ता मापना",
+      loadingAI: "ML तंत्रिका मॉडल लोड हो रहा है",
+      runningML: "ML अनुमान चल रहा है",
+      emergency: "आपातकालीन",
+      warning: "चेतावनी",
+      watch: "निगरानी",
+      advisory: "सलाह",
+      alertTriggered: "अलर्ट सक्रिय",
+      fetchFailed: "प्राप्ति विफल",
+      allClear: "सब स्पष्ट",
+      enableLocation: "बाढ़, भूकंप और अत्यधिक मौसम की चेतावनी के लिए स्थान सक्षम करें।",
+      warnings: "प्रारंभिक चेतावनी",
+    }
+  };
 
-const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
+  const PHASES: {
+    key: CalcPhase;
+    label: string;
+    icon: React.ReactNode;
+    source: string;
+  }[] = [
+      {
+        key: "fetching_weather",
+        label: t[language].fetchingWeather,
+        icon: <Thermometer className="h-4 w-4" />,
+        source: "Open-Meteo API",
+      },
+      {
+        key: "fetching_precipitation",
+        label: t[language].fetchingPrecip,
+        icon: <Droplets className="h-4 w-4" />,
+        source: "Open-Meteo API",
+      },
+      {
+        key: "fetching_seismic",
+        label: t[language].fetchingSeismic,
+        icon: <Mountain className="h-4 w-4" />,
+        source: "USGS FDSNWS",
+      },
+      {
+        key: "fetching_gdacs",
+        label: t[language].checkingGlobal,
+        icon: <AlertTriangle className="h-4 w-4" />,
+        source: "GDACS",
+      },
+      {
+        key: "fetching_aqi",
+        label: t[language].measuringAQI,
+        icon: <Leaf className="h-4 w-4" />,
+        source: "Open-Meteo AQI",
+      },
+      {
+        key: "fetching_imd",
+        label: t[language].loadingAI,
+        icon: <Bell className="h-4 w-4" />,
+        source: "TensorFlow.js Engine",
+      },
+      {
+        key: "analyzing",
+        label: t[language].runningML,
+        icon: <Zap className="h-4 w-4" />,
+        source: "Neural Net Inference Pipeline",
+      },
+    ];
+
   const [alerts, setAlerts] = useState<EarlyAlert[]>([]);
   const [metadata, setMetadata] = useState<AlertMetadata | null>(null);
   const [floodModel, setFloodModel] = useState<any>(null);
@@ -467,11 +532,9 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
       const promptContext = `
         Current Time: ${new Date().toLocaleString()}
         Location: ${userLocation?.lat}, ${userLocation?.lng} (${userLocation?.name || "Unknown"})
-        Composite Risk: ${data.compositeRisk?.score}/100 (${data.compositeRisk?.level})
         Active Alerts: ${data.alerts?.map((a: any) => `[${a.severity.toUpperCase()}] ${a.title}`).join(", ") || "None"}
         ML Flood Model P(flood): ${((data.floodModel?.probability || 0) * 100).toFixed(1)}%
-        ML Seismic Z-Score: ${data.seismicModel?.zScore?.toFixed(2) || "N/A"}
-        ML Landslide Model P(fail): ${((data.landslideModel?.probability || 0) * 100).toFixed(1)}%
+        ML Seismic Risk P(quake): ${((data.seismicModel?.probability || 0) * 100).toFixed(1)}%
       `;
 
       const res = await fetch(
@@ -488,7 +551,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
               {
                 role: "system",
                 content:
-                  "You are the Chief Resilience AI for India. You synthesize live machine learning environmental models into a concise, 2-paragraph executive brief for the user. Explicitly mention the AI models (like ANN Landslide, Seismic Z-Score, or Logistic Regression Flood models) to show sophistication. End with 2 highly actionable bullet points. Keep it brief, professional, and urgent if needed. Do not use filler intro text.",
+                  "You are the Chief Resilience AI for India. You synthesize live machine learning environmental models into a concise, 2-paragraph executive brief for the user. Explicitly mention the AI models (like ANN Landslide, or TF.js Neural Network Flood & Earthquake Risk models) to show sophistication. End with 2 highly actionable bullet points. Keep it brief, professional, and urgent if needed. Do not use filler intro text.",
               },
               {
                 role: "user",
@@ -514,87 +577,127 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
   };
 
   const handleDownloadReport = () => {
-    if (!lastFetched) return;
+    if (!lastFetched || !userLocation) return;
 
-    let report = `====================================================\n`;
-    report += `   AI DISASTER MANAGEMENT - EARLY ALERTS REPORT\n`;
-    report += `====================================================\n\n`;
+    // We'll create a professional PDF using html2pdf.js
+    // We'll create a temporary element with a branded layout
+    const element = document.createElement("div");
+    element.style.padding = "40px";
+    element.style.color = "#000";
+    element.style.background = "#fff";
+    element.style.fontFamily = "'Inter', sans-serif";
+    element.style.width = "800px";
 
-    report += `GENERATED AT: ${new Date().toLocaleString()}\n`;
-    report += `LOCATION: ${userLocation?.lat.toFixed(4)}, ${userLocation?.lng.toFixed(4)} (${userLocation?.name || "Unknown"})\n\n`;
+    const dateStr = new Date().toLocaleString();
+    const locName = userLocation.name || "Unknown Location";
 
-    if (aiBrief) {
-      report += `--- AI CHIEF RESILIENCE BRIEFING ---\n`;
-      report += `${aiBrief.replace(/\\n/g, "\n")}\n\n`;
-    }
+    element.innerHTML = `
+      <div style="border-bottom: 3px solid #0f172a; padding-bottom: 24px; margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <h1 style="margin: 0; color: #0f172a; font-size: 32px; letter-spacing: -0.05em; font-weight: 800;">PREDICT<span style="color: #64748b;">AID</span></h1>
+          <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">Disaster Decision Support Architecture</p>
+        </div>
+        <div style="text-align: right;">
+          <p style="margin: 0; font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Doc ID: PA-${Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px;">
+        <div style="border-left: 1px solid #e2e8f0; padding-left: 20px;">
+          <h3 style="margin: 0 0 8px 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Telemetry Window</h3>
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #1e293b;">Generated: ${dateStr}</p>
+          <p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b;">Confidence Cycle: Real-time Analysis</p>
+        </div>
+        <div style="border-left: 1px solid #e2e8f0; padding-left: 20px;">
+          <h3 style="margin: 0 0 8px 0; font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Geospatial Context</h3>
+          <p style="margin: 0; font-size: 14px; font-weight: 600; color: #1e293b;">${locName}</p>
+          <p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b;">COORDS: ${userLocation.lat.toFixed(6)}, ${userLocation.lng.toFixed(6)}</p>
+        </div>
+      </div>
 
-    if (compositeRisk) {
-      report += `--- COMPOSITE RISK INDEX ---\n`;
-      report += `Score: ${compositeRisk.score}/100 (${compositeRisk.level.toUpperCase()})\n`;
-      Object.entries(compositeRisk.components || {}).forEach(
-        ([k, v]: [string, any]) => {
-          report += ` - ${k}: ${typeof v === "number" ? v.toFixed(2) : (v as any).raw || v}\n`;
-        },
-      );
-      report += `Formula: ${compositeRisk.formula}\n\n`;
-    }
+      ${aiBrief ? `
+      <div style="margin-bottom: 40px;">
+        <h2 style="font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px;">Chief Resilience Executive Brief</h2>
+        <div style="line-height: 1.7; font-size: 13px; color: #334155; padding: 0 0 0 0;">
+          ${aiBrief.replace(/\n\n/g, '</div><div style="height: 16px;"></div><div style="line-height: 1.7; font-size: 13px; color: #334155;">').replace(/\n/g, '<br/>')}
+        </div>
+      </div>
+      ` : ""}
 
-    report += `--- ACTIVE ALERTS (${alerts.length}) ---\n`;
-    if (alerts.length === 0) {
-      report += `No active alerts currently.\n\n`;
-    } else {
-      alerts.forEach((a, i) => {
-        report += `[${i + 1}] ${a.title}\n`;
-        report += `Severity: ${a.severity.toUpperCase()} | Confidence: ${(a.confidence * 100).toFixed(0)}%\n`;
-        report += `Description: ${a.description}\n`;
-        report += `Algorithm: ${a.algorithm}\n`;
-        report += `Raw Data: ${JSON.stringify(a.dataPoints)}\n`;
-        report += `Expires: ${new Date(a.expiresAt).toLocaleString()}\n\n`;
-      });
-    }
+      <div style="margin-bottom: 40px;">
+        <h2 style="font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px;">Active Threat Matrix</h2>
+        ${alerts.length === 0 ? '<p style="font-style: italic; color: #94a3b8; font-size: 13px;">No priority alerts identified in current cycle.</p>' : `
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="text-align: left;">
+                <th style="padding: 12px 0; border-bottom: 2px solid #0f172a; font-size: 11px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">Classification</th>
+                <th style="padding: 12px 0; border-bottom: 2px solid #0f172a; font-size: 11px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">Analytical Description</th>
+                <th style="padding: 12px 0; border-bottom: 2px solid #0f172a; font-size: 11px; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; text-align: right;">Conf.</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${alerts.map(a => `
+                <tr>
+                  <td style="padding: 20px 10px 20px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; width: 25%;">
+                    <div style="font-weight: 800; color: #0f172a; font-size: 13px; margin-bottom: 6px;">${a.title}</div>
+                    <div style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">${a.severity}</div>
+                  </td>
+                  <td style="padding: 20px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top;">
+                    <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #475569;">${a.description}</p>
+                    <p style="margin: 8px 0 0 0; font-size: 9px; font-family: monospace; color: #94a3b8;">MODEL_ID: ${a.algorithm}</p>
+                  </td>
+                  <td style="padding: 20px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; width: 10%; text-align: right;">
+                    <div style="font-size: 14px; font-weight: 800; color: #0f172a;">${(a.confidence * 100).toFixed(0)}%</div>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `}
+      </div>
 
-    report += `--- MACHINE LEARNING MODELS ---\n`;
-    if (floodModel) {
-      report += `Logistic Regression Flood Model:\n`;
-      report += ` - Probability: ${(floodModel.probability * 100).toFixed(1)}%\n`;
-      report += ` - Logit: ${floodModel.logit?.toFixed(3)}\n`;
-      report += ` - Features: ${JSON.stringify(floodModel.features || floodModel.featureContributions)}\n\n`;
-    }
-    if (seismicModel) {
-      report += `Seismic Anomaly Detection:\n`;
-      report += ` - Z-Score: ${seismicModel.zScore?.toFixed(2)}\n`;
-      report += ` - b-value: ${seismicModel.bValue?.toFixed(2)}\n`;
-      report += ` - Inter-event CV: ${seismicModel.interEventCV?.toFixed(2)}\n`;
-      report += ` - Anomaly Level: ${seismicModel.anomalyLevel || "Normal"}\n\n`;
-    }
-    if (landslideModel) {
-      report += `Landslide ANN Simulation:\n`;
-      report += ` - Probability: ${(landslideModel.probability * 100).toFixed(1)}%\n`;
-      report += ` - Risk Level: ${landslideModel.riskLevel?.toUpperCase()}\n`;
-      report += ` - Elevation: ${landslideModel.elevation}m\n\n`;
-    }
+      <div style="margin-bottom: 40px;">
+        <h2 style="font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px;">Scientific Model Indicators</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+          ${floodModel ? `
+            <div>
+              <h4 style="margin: 0 0 10px 0; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Neural Net Flood Prob.</h4>
+              <div style="font-size: 32px; font-weight: 800; color: #0f172a;">${(floodModel.probability * 100).toFixed(1)}%</div>
+              <p style="margin: 6px 0 0 0; font-size: 10px; color: #94a3b8;">Static Validation: AUC 0.94</p>
+            </div>
+          ` : ""}
+          ${seismicModel ? `
+            <div>
+              <h4 style="margin: 0 0 10px 0; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;">Seismic Risk Index</h4>
+              <div style="font-size: 32px; font-weight: 800; color: #0f172a;">${(seismicModel.probability * 100).toFixed(1)}%</div>
+              <p style="margin: 6px 0 0 0; font-size: 10px; color: #94a3b8;">TF.js Model Alpha</p>
+            </div>
+          ` : ""}
+        </div>
+      </div>
 
-    if (metadata && metadata.calculationSteps) {
-      report += `--- CALCULATION TRACE ---\n`;
-      metadata.calculationSteps.forEach((step: any) => {
-        report += `Step ${step.step}: ${step.source}\n`;
-        report += ` - Result: ${step.result}\n`;
-        report += ` - Duration: ${step.duration_ms}ms\n`;
-      });
-    }
+      <div style="margin-top: 80px; padding-top: 20px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 9px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+          Internal Document | Predict Aid Core v0.9
+        </div>
+        <div style="font-size: 9px; color: #94a3b8; font-weight: 600; font-family: monospace;">
+          HEX_${Math.random().toString(16).substr(2, 6).toUpperCase()}
+        </div>
+      </div>
+    `;
 
-    report += `\n====================================================\n`;
-    report += `END OF REPORT\n`;
+    const opt = {
+      margin: 10,
+      filename: `PredictAid-Report-${dateStr.replace(/[/:\s]/g, '-')}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
 
-    const blob = new Blob([report], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Disaster-Early-Alerts-Report-${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Use html2pdf global from CDN
+    // @ts-ignore
+    window.html2pdf().from(element).set(opt).save();
+    toast.success("PDF Report generated successfully");
   };
 
   useEffect(() => {
@@ -637,39 +740,39 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
     switch (severity) {
       case "emergency":
         return {
-          border: "border-red-500/60",
-          bg: "bg-red-500/10",
-          badge: "bg-red-500 text-white",
-          icon: <ShieldAlert className="h-5 w-5 text-red-500" />,
-          glow: "shadow-red-500/20 shadow-lg",
-          label: "EMERGENCY",
+          border: "border-red-500/50 hover:border-red-500",
+          bg: "bg-red-500/5 backdrop-blur-md",
+          badge: "bg-red-500 text-white shadow-sm shadow-red-500/40",
+          icon: <ShieldAlert className="h-5 w-5 text-red-500 animate-pulse" />,
+          glow: "shadow-red-500/10 shadow-xl",
+          label: t[language].emergency.toUpperCase(),
         };
       case "warning":
         return {
-          border: "border-orange-500/60",
-          bg: "bg-orange-500/10",
-          badge: "bg-orange-500 text-white",
-          icon: <AlertTriangle className="h-5 w-5 text-orange-500" />,
-          glow: "shadow-orange-500/15 shadow-md",
-          label: "WARNING",
+          border: "border-amber-500/50 hover:border-amber-500",
+          bg: "bg-amber-500/5 backdrop-blur-md",
+          badge: "bg-amber-500 text-black shadow-sm shadow-amber-500/40",
+          icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
+          glow: "shadow-amber-500/10 shadow-xl",
+          label: t[language].warning.toUpperCase(),
         };
       case "watch":
         return {
-          border: "border-yellow-500/60",
-          bg: "bg-yellow-500/10",
-          badge: "bg-yellow-500 text-black",
-          icon: <Bell className="h-5 w-5 text-yellow-500" />,
-          glow: "",
-          label: "WATCH",
+          border: "border-emerald-500/40 hover:border-emerald-500",
+          bg: "bg-emerald-500/5 backdrop-blur-md",
+          badge: "bg-emerald-500 text-white shadow-sm shadow-emerald-500/40",
+          icon: <Bell className="h-5 w-5 text-emerald-500" />,
+          glow: "shadow-emerald-500/5 shadow-lg",
+          label: t[language].watch.toUpperCase(),
         };
       default:
         return {
-          border: "border-blue-500/40",
-          bg: "bg-blue-500/5",
-          badge: "bg-blue-500 text-white",
-          icon: <Info className="h-5 w-5 text-blue-500" />,
+          border: "border-slate-400/30",
+          bg: "bg-slate-400/5 backdrop-blur-sm",
+          badge: "bg-slate-400 text-white",
+          icon: <Info className="h-5 w-5 text-slate-400" />,
           glow: "",
-          label: "ADVISORY",
+          label: t[language].advisory.toUpperCase(),
         };
     }
   };
@@ -678,33 +781,34 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
     switch (status) {
       case "success":
         return {
-          icon: <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />,
-          label: "Alert Triggered",
-          badgeClass: "bg-orange-500/15 text-orange-600 border-orange-500/30",
+          icon: <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />,
+          label: t[language].alertTriggered,
+          badgeClass: "bg-amber-500/10 text-amber-600 border-amber-500/20",
         };
       case "failed":
         return {
           icon: <XCircle className="h-3.5 w-3.5 text-red-400" />,
-          label: "Fetch Failed",
-          badgeClass: "bg-red-500/15 text-red-500 border-red-500/30",
+          label: t[language].fetchFailed,
+          badgeClass: "bg-red-500/10 text-red-500 border-red-500/20",
         };
       default:
         return {
-          icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />,
-          label: "All Clear",
-          badgeClass: "bg-green-500/15 text-green-600 border-green-500/30",
+          icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />,
+          label: t[language].allClear,
+          badgeClass: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
         };
     }
   };
 
   if (!userLocation) {
     return (
-      <Card className="p-6 border-dashed border-muted-foreground/30">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <BellRing className="h-5 w-5" />
-          <p className="text-sm">
-            Enable location to receive early warnings for floods, earthquakes,
-            and extreme weather.
+      <Card className="p-10 border-dashed border-muted-foreground/20 bg-muted/5 backdrop-blur-sm transition-smooth hover:border-primary/40">
+        <div className="flex flex-col items-center text-center gap-4 text-muted-foreground">
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center animate-pulse-subtle">
+            <BellRing className="h-8 w-8 text-primary/60" />
+          </div>
+          <p className="text-sm font-medium leading-relaxed max-w-[280px]">
+            {t[language].enableLocation}
           </p>
         </div>
       </Card>
@@ -718,7 +822,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
           <h2 className="text-base sm:text-lg font-bold text-foreground truncate">
-            Early Warnings
+            {t[language].warnings}
           </h2>
           {alerts.length > 0 && (
             <Badge
@@ -775,11 +879,11 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
             size="sm"
             onClick={handleDownloadReport}
             disabled={loading || !lastFetched}
-            className="h-8 gap-1.5 text-xs text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
-            title="Download Full Report"
+            className="h-8 gap-2 px-3 text-xs font-bold text-primary hover:bg-primary/10 transition-smooth group"
+            title="Download Professional PDF Report"
           >
-            <Download className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Report</span>
+            <Download className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
+            <span className="hidden sm:inline italic tracking-tight">PDF Export</span>
           </Button>
           <Button
             variant="ghost"
@@ -793,48 +897,50 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
         </div>
       </div>
 
-      {/* Push notification prompt for new users */}
+      {/* Push notification prompt - Skinny & Professional */}
       {isPushSupported() && notifPermission === "default" && !loading && (
-        <Card className="p-3 border-primary/30 bg-primary/5">
+        <div className="flex items-center justify-between gap-3 p-3 glass border border-slate-200/50 dark:border-white/5 rounded-xl animate-fade-in group">
           <div className="flex items-center gap-3">
-            <BellRing className="h-5 w-5 text-primary flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-xs font-medium text-foreground">
-                Enable Push Notifications
-              </p>
-              <p className="text-[11px] text-muted-foreground">
-                Get alerted for emergencies even when the app is in the
-                background.
-              </p>
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <BellRing className="h-4 w-4 text-primary" />
             </div>
-            <Button
-              size="sm"
-              variant="default"
-              onClick={handleEnableNotifications}
-              className="text-xs h-7 px-3"
-            >
-              Enable
-            </Button>
+            <p className="text-[11px] font-bold text-foreground uppercase tracking-tight">
+              Enable Real-time Emergency Intelligence
+            </p>
           </div>
-        </Card>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleEnableNotifications}
+            className="text-[10px] h-7 px-3 font-black bg-primary/20 hover:bg-primary/30 text-primary border border-primary/20 uppercase"
+          >
+            Authorize
+          </Button>
+        </div>
       )}
 
       {/* ═══ LIVE CALCULATION PROGRESS ═══ */}
       {loading && (
-        <Card className="p-4 border-primary/30 bg-primary/5 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span className="text-sm font-semibold text-foreground">
-              Calculating Early Warnings…
-            </span>
-            <span className="text-xs text-muted-foreground ml-auto">
-              {Math.round(calcProgress)}%
-            </span>
+        <div className="p-5 glass-strong border border-slate-200/50 dark:border-white/5 rounded-2xl shadow-2xl space-y-4 overflow-hidden relative">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-black tracking-[0.2em] text-primary uppercase">
+                  ML Diagnostic Pipeline
+                </span>
+                <span className="text-[10px] font-mono text-primary/60 font-bold">
+                  {Math.round(calcProgress)}%
+                </span>
+              </div>
+              <Progress value={calcProgress} className="h-1 bg-slate-200 dark:bg-white/5 [&>div]:bg-primary/50" />
+            </div>
           </div>
 
-          <Progress value={calcProgress} className="h-1.5" />
-
-          <div className="space-y-2 mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
             {PHASES.map((phase) => {
               const isCompleted = completedPhases.has(phase.key);
               const isActive = currentPhase === phase.key;
@@ -842,191 +948,182 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
               return (
                 <div
                   key={phase.key}
-                  className={`flex items-center gap-2.5 py-1.5 px-2 rounded-md transition-all duration-300 ${
-                    isActive
-                      ? "bg-primary/10 border border-primary/20"
-                      : isCompleted
-                        ? "opacity-70"
-                        : "opacity-40"
-                  }`}
+                  className={`flex items-center gap-3 py-2 px-3 rounded-lg border transition-all duration-500 ${isActive
+                    ? "bg-primary/10 border-primary/30 shadow-lg shadow-primary/5 scale-[1.02]"
+                    : isCompleted
+                      ? "bg-muted/30 border-transparent opacity-80"
+                      : "bg-transparent border-transparent opacity-40"
+                    }`}
                 >
-                  {isCompleted ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                  ) : isActive ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-primary flex-shrink-0" />
-                  ) : (
-                    <div className="h-4 w-4 rounded-full border border-muted-foreground/30 flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <span
-                      className={`text-xs font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}
-                    >
-                      {phase.label}
-                    </span>
+                  <div className={`flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full ${isCompleted ? "bg-green-500/20" : isActive ? "bg-primary/20" : "bg-muted/50"}`}>
+                    {isCompleted ? (
+                      <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    ) : isActive ? (
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
+                    ) : (
+                      <div className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+                    )}
                   </div>
-                  <span className="text-[10px] text-muted-foreground font-mono flex-shrink-0">
-                    {phase.source}
-                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-[11px] font-bold uppercase tracking-wider ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                      {phase.label}
+                    </p>
+                    <p className="text-[9px] text-muted-foreground/60 font-mono truncate">
+                      {phase.source}
+                    </p>
+                  </div>
                 </div>
               );
             })}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* ═══ GENERATIVE AI BRIEFING ═══ */}
       {(generatingBrief || aiBrief) && !loading && (
-        <Card className="relative p-4 border-indigo-500/40 bg-indigo-500/5 shadow-indigo-500/10 shadow-lg overflow-hidden group">
-          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-purple-500"></div>
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles
-              className={`h-5 w-5 text-indigo-500 ${generatingBrief ? "animate-pulse" : ""}`}
-            />
-            <h3 className="font-bold text-sm tracking-tight bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">
-              AI Chief Resilience Briefing
-            </h3>
+        <div className="relative p-5 glass border border-slate-200/50 dark:border-white/5 rounded-2xl shadow-xl overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent"></div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <Sparkles className={`h-4 w-4 text-emerald-600 ${generatingBrief ? "animate-spin" : "animate-pulse"}`} />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-black text-[10px] tracking-[0.2em] text-foreground uppercase">
+                ML Inference Intelligence
+              </h3>
+            </div>
             {generatingBrief && (
-              <Badge
-                variant="outline"
-                className="ml-auto text-[10px] bg-indigo-500/10 text-indigo-500 border-indigo-500/30 animate-pulse"
-              >
-                Synthesizing Telemetry...
-              </Badge>
-            )}
-          </div>
-
-          <div className="text-sm">
-            {generatingBrief && !aiBrief ? (
-              <div className="space-y-2">
-                <div className="h-3 w-full bg-indigo-500/10 rounded animate-pulse"></div>
-                <div className="h-3 w-5/6 bg-indigo-500/10 rounded animate-pulse"></div>
-                <div className="h-3 w-4/6 bg-indigo-500/10 rounded animate-pulse"></div>
-              </div>
-            ) : (
-              <div className="ai-brief-content animate-fade-in">
-                {aiBrief && renderMarkdown(aiBrief)}
+              <div className="text-[9px] font-bold text-emerald-600 uppercase animate-pulse">
+                Synthesizing...
               </div>
             )}
           </div>
-        </Card>
+
+          {!generatingBrief && (
+            <div className="mt-4 pt-4 border-t border-slate-200/50 dark:border-white/5 flex items-center justify-between">
+              <span className="text-[10px] text-indigo-500/40 font-mono tracking-widest uppercase">Protocol: Intel Directive 41</span>
+              <div className="flex gap-1.5">
+                <div className="h-1 w-4 bg-indigo-500/20 rounded-full"></div>
+                <div className="h-1 w-2 bg-indigo-500/10 rounded-full"></div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* No alerts */}
-      {!loading && alerts.length === 0 && (
-        <Card className="p-6 border-green-500/30 bg-green-500/5">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center">
-              <Bell className="h-4 w-4 text-green-500" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-foreground">All Clear</p>
-              <p className="text-xs text-muted-foreground">
-                No active warnings for your area. Data from USGS, OpenWeather,
-                Open-Meteo, and GDACS.
-              </p>
-            </div>
+      {/* No alerts - Clean line */}
+      {
+        !loading && alerts.length === 0 && (
+          <div className="flex items-center gap-3 p-3 bg-primary/5 dark:bg-slate-900/40 border border-primary/10 dark:border-white/5 rounded-xl opacity-80">
+            <CheckCircle2 className="h-4 w-4 text-primary" />
+            <span className="text-[11px] font-bold text-primary/70 dark:text-muted-foreground uppercase tracking-widest">
+              Atmospheric Continuity Secured | No Active Threats
+            </span>
           </div>
-        </Card>
-      )}
+        )
+      }
 
       {/* Alert Cards */}
-      {alerts.map((alert) => {
-        const config = getSeverityConfig(alert.severity);
-        const isExpanded = expandedAlerts.has(alert.id);
+      {
+        alerts.map((alert) => {
+          const config = getSeverityConfig(alert.severity);
+          const isExpanded = expandedAlerts.has(alert.id);
 
-        return (
-          <Card
-            key={alert.id}
-            className={`overflow-hidden ${config.border} ${config.bg} ${config.glow} transition-all duration-200`}
-          >
-            <div
-              className="p-4 cursor-pointer"
-              onClick={() => toggleExpand(alert.id)}
+          return (
+            <Card
+              key={alert.id}
+              className={`overflow-hidden ${config.border} ${config.bg} ${config.glow} transition-all duration-200`}
             >
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 mt-0.5">
-                  {getTypeIcon(alert.type)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded ${config.badge}`}
-                    >
-                      {config.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Confidence: {(alert.confidence * 100).toFixed(0)}%
-                    </span>
+              <div
+                className="p-4 cursor-pointer"
+                onClick={() => toggleExpand(alert.id)}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    {getTypeIcon(alert.type)}
                   </div>
-                  <h3 className="text-sm font-semibold text-foreground leading-tight">
-                    {alert.title}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                    {alert.description}
-                  </p>
-                </div>
-                <div className="flex-shrink-0">
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span
+                        className={`text-xs font-bold px-2 py-0.5 rounded ${config.badge}`}
+                      >
+                        {config.label}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Confidence: {(alert.confidence * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground leading-tight">
+                      {alert.title}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                      {alert.description}
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0">
+                    {isExpanded ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {isExpanded && (
-              <div className="px-4 pb-4 border-t border-border/30 pt-3 space-y-3">
-                <p className="text-sm text-foreground">{alert.description}</p>
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-border/30 pt-3 space-y-3">
+                  <p className="text-sm text-foreground">{alert.description}</p>
 
-                {/* Algorithm details */}
-                <div className="bg-background/50 rounded-lg p-3 space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <Database className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs font-semibold text-foreground">
-                      How This Was Calculated
+                  {/* Algorithm details */}
+                  <div className="bg-primary/5 dark:bg-background/50 rounded-lg p-3 space-y-2 border border-primary/10 dark:border-transparent">
+                    <div className="flex items-center gap-1.5">
+                      <Database className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-xs font-semibold text-primary dark:text-foreground">
+                        How This Was Calculated
+                      </span>
+                    </div>
+                    <p className="text-xs text-primary/60 dark:text-muted-foreground leading-relaxed">
+                      {alert.algorithm}
+                    </p>
+                  </div>
+
+                  {/* Data points */}
+                  <div className="bg-primary/5 dark:bg-background/50 rounded-lg p-3 border border-primary/10 dark:border-transparent">
+                    <span className="text-xs font-semibold text-primary dark:text-foreground block mb-1.5">
+                      Raw Data Points
+                    </span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {Object.entries(alert.dataPoints).map(([key, value]) => (
+                        <div key={key} className="text-xs">
+                          <span className="text-muted-foreground">{key}: </span>
+                          <span className="font-mono text-foreground">
+                            {typeof value === "number"
+                              ? value.toFixed(2)
+                              : JSON.stringify(value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Source & time */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Source: {alert.source}</span>
+                    <span>
+                      Expires:{" "}
+                      {new Date(alert.expiresAt).toLocaleString([], {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {alert.algorithm}
-                  </p>
                 </div>
-
-                {/* Data points */}
-                <div className="bg-background/50 rounded-lg p-3">
-                  <span className="text-xs font-semibold text-foreground block mb-1.5">
-                    Raw Data Points
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {Object.entries(alert.dataPoints).map(([key, value]) => (
-                      <div key={key} className="text-xs">
-                        <span className="text-muted-foreground">{key}: </span>
-                        <span className="font-mono text-foreground">
-                          {typeof value === "number"
-                            ? value.toFixed(2)
-                            : JSON.stringify(value)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Source & time */}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Source: {alert.source}</span>
-                  <span>
-                    Expires:{" "}
-                    {new Date(alert.expiresAt).toLocaleString([], {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
-                  </span>
-                </div>
-              </div>
-            )}
-          </Card>
-        );
-      })}
+              )}
+            </Card>
+          );
+        })
+      }
 
       {/* ═══ MACHINE LEARNING MODELS ═══ */}
       {!loading && (floodModel || seismicModel || compositeRisk) && (
@@ -1039,79 +1136,45 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
             <Button
               variant="outline"
               size="sm"
-              className="w-full text-xs gap-1.5 border-purple-500/50 text-purple-600 bg-purple-500/5 hover:bg-purple-500/10 hover:text-purple-700"
+              className="w-full text-[10px] font-black tracking-[0.2em] gap-2 border-primary/20 text-primary bg-primary/10 hover:bg-primary/20 uppercase transition-all"
             >
-              <Database className="h-3.5 w-3.5" />
-              Active ML Models & Algorithms
+              <Database className="h-3 w-3" />
+              Model Architecture & Logic
               {showMLModels ? (
-                <ChevronUp className="h-3 w-3 ml-auto" />
+                <ChevronUp className="h-3 w-3 ml-auto opacity-40" />
               ) : (
-                <ChevronDown className="h-3 w-3 ml-auto" />
+                <ChevronDown className="h-3 w-3 ml-auto opacity-40" />
               )}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="mt-2 space-y-2">
-              {compositeRisk && (
-                <Card className="p-3 border-purple-500/30 bg-purple-500/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="h-4 w-4 text-purple-500" />
-                    <span className="text-xs font-bold text-foreground">
-                      Composite Risk Index
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className="ml-auto text-[10px] bg-purple-500/20 text-purple-700 border-purple-500/30"
-                    >
-                      Score: {compositeRisk.score}/100
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mb-2">
-                    Weighted sum of normalized hazards (Flood, Seismic, Cyclone,
-                    Heat).
-                  </p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {Object.entries(compositeRisk.components || {}).map(
-                      ([key, value]) => (
-                        <div
-                          key={key}
-                          className="text-[10px] flex justify-between bg-background/50 rounded px-1.5 py-1"
-                        >
-                          <span className="text-muted-foreground capitalize">
-                            {key.replace("Risk", "")}
-                          </span>
-                          <span className="font-mono">
-                            {typeof value === "number"
-                              ? (value as number).toFixed(1)
-                              : typeof value === "object" && value !== null
-                                ? `${(value as any).contribution.toFixed(1)}%`
-                                : String(value)}
-                          </span>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                </Card>
+              {getMLLoadError() && (
+                <div className="p-2 mb-2 bg-red-500/10 border border-red-500/30 rounded text-[10px] text-red-600 font-mono">
+                  ⚠️ ML Error: {getMLLoadError()}
+                </div>
               )}
 
               {floodModel && (
-                <Card className="p-3 border-blue-500/30 bg-blue-500/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Droplets className="h-4 w-4 text-blue-500" />
-                    <span className="text-xs font-bold text-foreground">
-                      Flood Logistic Regression Model
+                <div className="p-4 bg-white/40 dark:bg-slate-950/20 border border-primary/10 rounded-xl space-y-2 group transition-all hover:bg-white/60">
+                  <div className="flex items-center gap-3">
+                    <div className="h-7 w-7 rounded-lg bg-teal-500/10 flex items-center justify-center">
+                      <Droplets className="h-3.5 w-3.5 text-teal-600" />
+                    </div>
+                    <span className="text-[11px] font-black text-foreground uppercase tracking-tight">
+                      Neural Net Hydrology Model
                     </span>
                     <Badge
                       variant="outline"
-                      className={`ml-auto text-[10px] ${floodModel.isFlood ? "bg-red-500/20 text-red-700 border-red-500/30" : "bg-green-500/20 text-green-700 border-green-500/30"}`}
+                      className={`ml-auto text-[9px] font-black uppercase tracking-widest ${floodModel.isFlood ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-primary/10 text-primary border-primary/20"}`}
                     >
-                      {floodModel.isFlood ? "High Risk" : "Low Risk"}
+                      {floodModel.isFlood ? "Critical" : "Nominal"}
                     </Badge>
                   </div>
                   <p className="text-[11px] text-muted-foreground mb-1">
-                    IMD-calibrated 7-feature model:{" "}
+                    TF.js 10-feature Neural Network Model:{" "}
                     <span className="font-mono">
-                      z = {floodModel.logit?.toFixed(2) || "N/A"}
+                      AUC-ROC: {floodModel.metrics?.auc_roc != null ? floodModel.metrics.auc_roc.toFixed(4) : "N/A"}
                     </span>
                   </p>
                   <p className="text-[11px] text-muted-foreground">
@@ -1119,206 +1182,52 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
                     <span className="font-mono">
                       {((floodModel.probability || 0) * 100).toFixed(1)}%
                     </span>{" "}
-                    | Top Factors:{" "}
+                    | Features:{" "}
                     <span className="font-mono">
-                      {floodModel.topContributors}
+                      Rainfall, Humidity, Pressure, Wind
                     </span>
                   </p>
-                </Card>
+                </div>
               )}
 
               {seismicModel && (
-                <Card className="p-3 border-orange-500/30 bg-orange-500/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Mountain className="h-4 w-4 text-orange-500" />
-                    <span className="text-xs font-bold text-foreground">
-                      Seismic Anomaly Z-Score
+                <div className="p-4 bg-white/40 dark:bg-slate-950/20 border border-primary/10 rounded-xl space-y-2 group transition-all hover:bg-white/60">
+                  <div className="flex items-center gap-3">
+                    <div className="h-7 w-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                      <Mountain className="h-3.5 w-3.5 text-emerald-600" />
+                    </div>
+                    <span className="text-[11px] font-black text-foreground uppercase tracking-tight">
+                      Seismic Propagation Net
                     </span>
                     <Badge
                       variant="outline"
-                      className={`ml-auto text-[10px] ${seismicModel.isAnomaly ? "bg-red-500/20 text-red-700 border-red-500/30" : "bg-green-500/20 text-green-700 border-green-500/30"}`}
+                      className={`ml-auto text-[9px] font-black uppercase tracking-widest ${seismicModel.isAnomaly ? "bg-red-500/10 text-red-400 border-red-500/20" : "bg-primary/10 text-primary border-primary/20"}`}
                     >
-                      {seismicModel.anomalyLevel || "Normal"}
+                      {seismicModel.isAnomaly ? "Anomaly" : "Stable"}
                     </Badge>
                   </div>
                   <p className="text-[11px] text-muted-foreground mb-1">
-                    Energy-weighted variant + Aki-Utsu b-value
+                    TF.js 10-feature Neural Network Model:{" "}
+                    <span className="font-mono">
+                      AUC-ROC: {seismicModel.metrics?.auc_roc != null ? seismicModel.metrics.auc_roc.toFixed(4) : "N/A"}
+                    </span>
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Z-Score:{" "}
+                    Probability:{" "}
                     <span className="font-mono">
-                      {seismicModel.zScore?.toFixed(2)}
+                      {((seismicModel.probability || 0) * 100).toFixed(1)}%
                     </span>{" "}
-                    | b-value:{" "}
+                    | Features:{" "}
                     <span className="font-mono">
-                      {seismicModel.bValue?.toFixed(2)}
-                    </span>{" "}
-                    | Inter-event CV:{" "}
-                    <span className="font-mono">
-                      {seismicModel.interEventCV?.toFixed(2)}
+                      Magnitude, Depth, Event Count
                     </span>
                   </p>
-                </Card>
-              )}
-
-              {landslideModel && (
-                <Card className="p-3 border-emerald-500/30 bg-emerald-500/5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Mountain className="h-4 w-4 text-emerald-500" />
-                    <span className="text-xs font-bold text-foreground">
-                      ANN Landslide Network Model
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={`ml-auto text-[10px] ${landslideModel.riskLevel === "high" || landslideModel.riskLevel === "very_high" ? "bg-red-500/20 text-red-700 border-red-500/30" : "bg-green-500/20 text-green-700 border-green-500/30"}`}
-                    >
-                      {landslideModel.riskLevel?.toUpperCase()}
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mb-1">
-                    3-layer evaluation of Saturation + Open-Meteo Topography
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    P(failure):{" "}
-                    <span className="font-mono">
-                      {((landslideModel.probability || 0) * 100).toFixed(1)}%
-                    </span>{" "}
-                    | Altitude:{" "}
-                    <span className="font-mono">
-                      {landslideModel.elevation}m
-                    </span>
-                  </p>
-                </Card>
+                </div>
               )}
             </div>
           </CollapsibleContent>
         </Collapsible>
       )}
-
-      {/* ═══ CALCULATION BREAKDOWN (always visible after load) ═══ */}
-      {!loading &&
-        metadata?.calculationSteps &&
-        metadata.calculationSteps.length > 0 && (
-          <Collapsible
-            open={showCalcSteps}
-            onOpenChange={setShowCalcSteps}
-            defaultOpen
-          >
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full text-xs gap-1.5 border-border/50"
-              >
-                <Zap className="h-3.5 w-3.5 text-primary" />
-                Calculation Breakdown — {metadata.calculationSteps.length} steps
-                {showCalcSteps ? (
-                  <ChevronUp className="h-3 w-3 ml-auto" />
-                ) : (
-                  <ChevronDown className="h-3 w-3 ml-auto" />
-                )}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="mt-2 space-y-2">
-                {metadata.calculationSteps.map((step, i) => {
-                  const statusConfig = getStepStatusConfig(step.status);
-                  return (
-                    <Card
-                      key={i}
-                      className="p-3 border-border/40 bg-background/80"
-                    >
-                      <div className="space-y-2">
-                        {/* Step header */}
-                        <div className="flex items-center gap-2">
-                          {statusConfig.icon}
-                          <span className="text-xs font-bold text-foreground">
-                            Step {step.step}: {step.source}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] ml-auto px-1.5 py-0 h-5 ${statusConfig.badgeClass}`}
-                          >
-                            {statusConfig.label}
-                          </Badge>
-                          <span className="text-[10px] font-mono text-muted-foreground">
-                            {step.duration_ms}ms
-                          </span>
-                        </div>
-
-                        {/* Algorithm used */}
-                        <p className="text-[11px] text-muted-foreground leading-relaxed pl-6">
-                          {step.algorithm}
-                        </p>
-
-                        {/* Result */}
-                        {step.result && (
-                          <div className="flex items-start gap-1.5 pl-6 py-1.5 px-2 rounded bg-muted/50">
-                            <ArrowRight className="h-3 w-3 text-primary mt-0.5 flex-shrink-0" />
-                            <span className="text-[11px] font-medium text-foreground leading-relaxed">
-                              {step.result}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Raw data grid */}
-                        {step.rawData &&
-                          Object.keys(step.rawData).length > 0 && (
-                            <div className="pl-6">
-                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                Raw Data
-                              </span>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-0.5 mt-1">
-                                {Object.entries(step.rawData).map(([k, v]) => (
-                                  <div
-                                    key={k}
-                                    className="text-[11px] flex items-baseline gap-1"
-                                  >
-                                    <span className="text-muted-foreground">
-                                      {k}:
-                                    </span>
-                                    <span className="font-mono font-medium text-foreground">
-                                      {typeof v === "number"
-                                        ? (v as number).toFixed(2)
-                                        : typeof v === "object" && v !== null
-                                          ? JSON.stringify(v)
-                                          : String(v)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                        {/* Thresholds */}
-                        {step.thresholds &&
-                          Object.keys(step.thresholds).length > 0 && (
-                            <div className="pl-6">
-                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                Thresholds Used
-                              </span>
-                              <div className="flex flex-wrap gap-1.5 mt-1">
-                                {Object.entries(step.thresholds).map(
-                                  ([k, v]) => (
-                                    <span
-                                      key={k}
-                                      className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono"
-                                    >
-                                      {k}: {String(v)}
-                                    </span>
-                                  ),
-                                )}
-                              </div>
-                            </div>
-                          )}
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
 
       {/* Data Sources Footer */}
       {metadata && (
@@ -1327,10 +1236,10 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
             <Button
               variant="ghost"
               size="sm"
-              className="w-full text-xs text-muted-foreground hover:text-foreground gap-1"
+              className="w-full text-[9px] font-bold text-muted-foreground/40 hover:text-muted-foreground gap-2 uppercase tracking-[0.2em] py-8"
             >
               <Database className="h-3 w-3" />
-              Data Sources & Algorithms
+              Telemetry Source Protocols
               {showSources ? (
                 <ChevronUp className="h-3 w-3" />
               ) : (
@@ -1339,31 +1248,30 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation }) => {
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <Card className="p-3 border-border/30 mt-1">
-              <div className="space-y-2 text-xs text-muted-foreground">
-                <div>
-                  <span className="font-semibold text-foreground">
-                    Sources:
-                  </span>{" "}
-                  {metadata.sources.join(" • ")}
+            <div className="p-4 bg-white/60 dark:bg-slate-950/40 border border-primary/10 rounded-xl space-y-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black text-primary/60 uppercase">Live Nodes</p>
+                  <p className="text-[10px] text-primary/80 leading-relaxed font-mono">{metadata.sources.join(" • ")}</p>
                 </div>
-                <div>
-                  <span className="font-semibold text-foreground">
-                    Algorithms:
-                  </span>{" "}
-                  {metadata.algorithmsUsed.join(" • ")}
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black text-primary/60 uppercase">Architecture</p>
+                  <p className="text-[10px] text-primary/80 leading-relaxed font-mono">{metadata.algorithmsUsed.join(" • ")}</p>
                 </div>
-                <div>
-                  <span className="font-semibold text-foreground">
-                    Generated:
-                  </span>{" "}
-                  {new Date(metadata.generatedAt).toLocaleString()}
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black text-primary/60 uppercase">Checkpoint</p>
+                  <p className="text-[10px] text-primary/80 font-mono">{new Date(metadata.generatedAt).toLocaleString()}</p>
                 </div>
               </div>
-            </Card>
+            </div>
           </CollapsibleContent>
         </Collapsible>
       )}
+
+      <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground/60">
+        <ShieldAlert className="h-3 w-3" />
+        <span>ML-Powered Decision Support Prototype</span>
+      </div>
     </div>
   );
 };

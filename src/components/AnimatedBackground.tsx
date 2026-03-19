@@ -48,12 +48,12 @@ const AnimatedBackground: React.FC = () => {
   const particles = useMemo(() => {
     const colors = [
       'bg-primary/30',
-      'bg-accent/30',
-      'bg-secondary/30',
+      'bg-emerald-500/30',
+      'bg-teal-500/30',
+      'bg-lime-500/20',
       'bg-primary-glow/20',
-      'bg-accent-glow/20',
     ];
-    
+
     return Array.from({ length: config.particles }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
@@ -92,69 +92,69 @@ const AnimatedBackground: React.FC = () => {
         {/* Large animated gradient orbs with blur for glassmorphism effect */}
         {config.orbs && (
           <>
-            <div className="absolute top-20 left-10 w-[500px] h-[500px] bg-gradient-to-br from-primary/20 to-accent/10 rounded-full blur-[100px] animate-float" />
-            <div className="absolute bottom-20 right-10 w-[600px] h-[600px] bg-gradient-to-tl from-accent/15 to-primary/10 rounded-full blur-[120px] animate-float" style={{ animationDelay: '1s' }} />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-gradient-to-r from-secondary/10 to-primary/5 rounded-full blur-[150px] animate-float" style={{ animationDelay: '2s' }} />
+            <div className="absolute top-20 left-10 w-[500px] h-[500px] bg-gradient-to-br from-primary/20 to-emerald-500/10 rounded-full blur-[100px] animate-float" />
+            <div className="absolute bottom-20 right-10 w-[600px] h-[600px] bg-gradient-to-tl from-emerald-500/15 to-primary/10 rounded-full blur-[120px] animate-float" style={{ animationDelay: '1s' }} />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-gradient-to-r from-teal-500/10 to-primary/5 rounded-full blur-[150px] animate-float" style={{ animationDelay: '2s' }} />
           </>
         )}
-        
-        {/* Mesh gradient overlay for depth */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(142,76,36,0.03),transparent_50%)] animate-shimmer" />
-      
-      {/* Floating glowing particles */}
-      <div className="absolute inset-0">
-        {particles.map((particle) => (
-          <div
-            key={particle.id}
-            className={`absolute ${particle.color} rounded-full opacity-30 backdrop-blur-sm animate-float`}
-            style={{
-              left: `${particle.x}%`,
-              top: `${particle.y}%`,
-              width: `${particle.size}px`,
-              height: `${particle.size}px`,
-              animationDuration: `${particle.duration}s`,
-              animationDelay: `${particle.delay}s`,
-              boxShadow: '0 0 20px currentColor',
-            }}
-          />
-        ))}
-      </div>
 
-      {/* Floating leaves with natural motion */}
-      <div className="absolute inset-0 pointer-events-none">
-        {leaves.map((leaf) => (
-          <div
-            key={`leaf-${leaf.id}`}
-            className="absolute animate-leaf-fall"
-            style={{
-              left: `${leaf.x}%`,
-              top: `${leaf.y}%`,
-              animationDuration: `${leaf.duration}s`,
-              animationDelay: `${leaf.delay}s`,
-              opacity: leaf.opacity,
-            }}
-          >
-            <svg
-              width={leaf.size}
-              height={leaf.size}
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="text-primary/40 dark:text-primary/30"
+        {/* Mesh gradient overlay for depth - Indigo tint for clarity */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(99,102,241,0.03),transparent_50%)] animate-shimmer" />
+
+        {/* Floating glowing particles */}
+        <div className="absolute inset-0">
+          {particles.map((particle) => (
+            <div
+              key={particle.id}
+              className={`absolute ${particle.color} rounded-full opacity-30 backdrop-blur-sm animate-float`}
               style={{
-                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
-                transform: `rotate(${leaf.rotation}deg)`,
+                left: `${particle.x}%`,
+                top: `${particle.y}%`,
+                width: `${particle.size}px`,
+                height: `${particle.size}px`,
+                animationDuration: `${particle.duration}s`,
+                animationDelay: `${particle.delay}s`,
+                boxShadow: '0 0 20px currentColor',
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Floating leaves with natural motion */}
+        <div className="absolute inset-0 pointer-events-none">
+          {leaves.map((leaf) => (
+            <div
+              key={`leaf-${leaf.id}`}
+              className="absolute animate-leaf-fall"
+              style={{
+                left: `${leaf.x}%`,
+                top: `${leaf.y}%`,
+                animationDuration: `${leaf.duration}s`,
+                animationDelay: `${leaf.delay}s`,
+                opacity: leaf.opacity,
               }}
             >
-              <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66 1.89-6.87c1.7-6.17 5.3-6.84 9.04-6.84 2.86 0 5.76.86 7.36 2.56V8c-2-1-4-1-7-1zm3.47 8.14c-.75-.75-1.47-1.14-2.47-1.14-2.5 0-3 2-3 4 0 2 .5 4 3 4 1 0 1.72-.39 2.47-1.14V17c0-1 0-2 .75-2.75-.75-.75-.75-1.75-.75-2.75z"/>
-            </svg>
-          </div>
-        ))}
-      </div>
+              <svg
+                width={leaf.size}
+                height={leaf.size}
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="text-primary/40 dark:text-primary/30"
+                style={{
+                  filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+                  transform: `rotate(${leaf.rotation}deg)`,
+                }}
+              >
+                <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66 1.89-6.87c1.7-6.17 5.3-6.84 9.04-6.84 2.86 0 5.76.86 7.36 2.56V8c-2-1-4-1-7-1zm3.47 8.14c-.75-.75-1.47-1.14-2.47-1.14-2.5 0-3 2-3 4 0 2 .5 4 3 4 1 0 1.72-.39 2.47-1.14V17c0-1 0-2 .75-2.75-.75-.75-.75-1.75-.75-2.75z" />
+              </svg>
+            </div>
+          ))}
+        </div>
 
         {/* Subtle plant shadows */}
         {config.orbs && (
           <>
-            <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-foreground/5 to-transparent opacity-30 pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-primary/5 to-transparent opacity-30 pointer-events-none" />
             <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-primary/5 to-transparent opacity-20 pointer-events-none" />
           </>
         )}

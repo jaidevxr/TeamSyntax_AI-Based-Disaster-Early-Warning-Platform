@@ -8,69 +8,71 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Light Mode - Warm Beige/Cream theme inspired by nature */
-    --background: 40 40% 94%;
-    --foreground: 30 25% 15%;
+    /* Warm Nature Theme - Inspired by predictaid.vercel.app */
+    --background: 45 20% 96%;
+    /* Neutral Cream/Beige */
+    --foreground: 154 30% 12%;
+    /* Deep Forest Green for text */
 
-    --card: 40 35% 96%;
-    --card-foreground: 30 25% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 154 30% 12%;
 
-    --popover: 40 40% 97%;
-    --popover-foreground: 30 25% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 154 30% 12%;
 
-    /* Primary - Soft Green accent */
-    --primary: 142 50% 45%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 142 55% 55%;
-    --primary-dark: 142 60% 35%;
+    /* Primary - Professional Nature Green */
+    --primary: 154 50% 25%;
+    --primary-foreground: 45 20% 98%;
+    --primary-glow: 154 40% 35%;
+    --primary-dark: 154 60% 15%;
 
-    /* Secondary - Warm Beige */
-    --secondary: 35 30% 88%;
-    --secondary-foreground: 30 25% 20%;
-    --secondary-glow: 35 35% 80%;
+    /* Secondary - Soft Sage Cream */
+    --secondary: 45 15% 92%;
+    --secondary-foreground: 154 30% 12%;
+    --secondary-glow: 45 15% 88%;
 
-    /* Accent - Muted Teal */
-    --accent: 160 40% 50%;
+    /* Accent - Muted Teal/Sage */
+    --accent: 162 45% 45%;
     --accent-foreground: 0 0% 100%;
-    --accent-glow: 160 45% 60%;
+    --accent-glow: 162 50% 55%;
 
     /* Muted */
-    --muted: 35 25% 90%;
-    --muted-foreground: 30 15% 50%;
+    --muted: 45 10% 90%;
+    --muted-foreground: 154 20% 40%;
 
-    /* Disaster severity colors */
+    /* Disaster severity colors (Balanced for Warm Background) */
     --destructive: 0 75% 55%;
-    --destructive-foreground: 0 0% 100%;
-    --warning: 35 85% 50%;
-    --warning-foreground: 0 0% 100%;
-    --success: 142 60% 45%;
-    --success-foreground: 0 0% 100%;
+    --destructive-foreground: 45 20% 98%;
+    --warning: 35 90% 45%;
+    --warning-foreground: 45 20% 98%;
+    --success: 154 60% 25%;
+    --success-foreground: 45 20% 98%;
 
-    --border: 35 20% 85%;
-    --input: 40 35% 98%;
-    --ring: 142 50% 45%;
+    --border: 45 15% 88%;
+    --input: 45 15% 88%;
+    --ring: 154 50% 25%;
 
     --radius: 0.75rem;
 
-    /* Warm nature-inspired Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(142 50% 45%), hsl(142 55% 55%));
-    --gradient-secondary: linear-gradient(135deg, hsl(35 30% 88%), hsl(160 40% 50%));
-    --gradient-hero: linear-gradient(135deg, hsl(40 40% 94%), hsl(35 35% 90%));
-    --gradient-card: linear-gradient(135deg, hsl(40 35% 96%), hsl(35 30% 92%));
+    /* Organic Nature Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(154 50% 25%), hsl(162 45% 45%));
+    --gradient-secondary: linear-gradient(135deg, hsl(45 15% 92%), hsl(45 15% 85%));
+    --gradient-hero: linear-gradient(135deg, hsl(45 20% 96%), hsl(45 15% 92%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(45 15% 98%));
 
-    /* Soft shadows with warm tint */
-    --shadow-glow: 0 8px 32px -8px hsl(35 30% 50% / 0.2);
-    --shadow-card: 0 4px 20px -4px hsl(30 20% 40% / 0.08);
-    --shadow-elevated: 0 12px 40px -12px hsl(30 20% 40% / 0.12);
+    /* Professional Organic Shadows */
+    --shadow-glow: 0 8px 32px -8px hsl(154 50% 25% / 0.15);
+    --shadow-card: 0 4px 12px -2px hsl(154 30% 12% / 0.04);
+    --shadow-elevated: 0 20px 40px -20px hsl(154 30% 12% / 0.1);
 
-    --sidebar-background: 40 35% 92%;
-    --sidebar-foreground: 30 25% 20%;
-    --sidebar-primary: 142 50% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 35 25% 90%;
-    --sidebar-accent-foreground: 30 25% 20%;
-    --sidebar-border: 35 20% 85%;
-    --sidebar-ring: 142 50% 45%;
+    --sidebar-background: 45 15% 94%;
+    --sidebar-foreground: 154 30% 12%;
+    --sidebar-primary: 154 50% 25%;
+    --sidebar-primary-foreground: 45 20% 98%;
+    --sidebar-accent: 45 10% 90%;
+    --sidebar-accent-foreground: 154 30% 12%;
+    --sidebar-border: 45 15% 88%;
+    --sidebar-ring: 154 50% 25%;
   }
 
   .dark {
@@ -155,13 +157,17 @@ All colors MUST be HSL.
 
   /* Glassmorphism cards with backdrop blur */
   .glass {
-    @apply bg-card/80 backdrop-blur-md border border-border/50 rounded-xl;
+    @apply bg-white/60 dark:bg-slate-900/40 backdrop-blur-md border border-slate-200/50 dark:border-white/5 rounded-xl;
     box-shadow: var(--shadow-card);
   }
 
   .glass-strong {
-    @apply bg-card/90 backdrop-blur-xl border border-border/60 rounded-xl;
+    @apply bg-white/80 dark:bg-slate-950/40 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-xl;
     box-shadow: var(--shadow-elevated);
+  }
+
+  .premium-card {
+    @apply bg-white/40 dark:bg-slate-950/40 backdrop-blur-md border border-slate-200/50 dark:border-white/5 transition-all duration-300;
   }
 
   /* Gradient backgrounds */

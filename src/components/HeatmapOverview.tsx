@@ -12,6 +12,7 @@ import EmergencySOS from '@/components/EmergencySOS';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { createOfflineTileLayer } from '@/utils/offlineTileLayer';
+import { predictFlood } from '@/utils/mlModels';
 
 interface HeatmapOverviewProps {
   disasters: DisasterEvent[];
@@ -44,7 +45,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
   const [mapLayer, setMapLayer] = useState<MapLayer>('default');
   const [heatmapRadius, setHeatmapRadius] = useState(60);
   const [heatmapBlur, setHeatmapBlur] = useState(35);
-  const [weatherData, setWeatherData] = useState<Map<string, { temp: number; aqi: number }>>(new Map());
+  const [weatherData, setWeatherData] = useState<Map<string, { temp: number; aqi: number; floodRisk: number; floodFactors: string[] }>>(new Map());
   const [loading, setLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
   const [selectedState, setSelectedState] = useState<string | null>(null);
@@ -89,6 +90,23 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
         mapInstanceRef.current = null;
       }
     };
+  }, []);
+
+  // 📡 Global Telemetry Map Navigation: Centering Listener
+  useEffect(() => {
+    const handleCenterMap = (e: any) => {
+      const location = e.detail;
+      if (mapInstanceRef.current && location) {
+        console.log("📍 Centering map on specialized telemetry:", location);
+        mapInstanceRef.current.setView([location.lat, location.lng], 10, {
+          animate: true,
+          duration: 1.5
+        });
+      }
+    };
+
+    window.addEventListener('centerMap', handleCenterMap);
+    return () => window.removeEventListener('centerMap', handleCenterMap);
   }, []);
 
   // Listen for theme changes
@@ -280,24 +298,8 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       else if (lat > 15 && lat < 16 && lng > 74 && lng < 75) state = 'Goa';
       else if (lat > 23 && lat < 24 && lng > 85 && lng < 86) state = 'Jharkhand';
 
-      // Real-data risk — same model as disaster layer
-      let risk = 0.0;
-      if (data.temp >= 45) risk += 0.55;
-      else if (data.temp >= 40) risk += 0.45;
-      else if (data.temp >= 35) risk += 0.30;
-      else if (data.temp >= 28) risk += 0.18;
-      else if (data.temp <= 4) risk += 0.45;
-      else if (data.temp <= 10) risk += 0.25;
-      else risk += 0.12;
-
-      if (data.aqi >= 300) risk += 0.50;
-      else if (data.aqi >= 200) risk += 0.38;
-      else if (data.aqi >= 150) risk += 0.25;
-      else if (data.aqi >= 100) risk += 0.15;
-      else if (data.aqi >= 50) risk += 0.08;
-      else risk += 0.03;
-
-      risk = Math.min(1.0, risk);
+      // Real-data risk — directly from ML model
+      let risk = data.floodRisk || 0;
 
       const existing = stateMap.get(state) || { tempSum: 0, aqiSum: 0, riskSum: 0, count: 0 };
       stateMap.set(state, {
@@ -441,7 +443,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       const totalCities = cities.length;
       setLoadingProgress({ current: 0, total: totalCities });
 
-      const dataMap = new Map<string, { temp: number; aqi: number }>();
+      const dataMap = new Map<string, { temp: number; aqi: number; floodRisk: number; floodFactors: string[] }>();
       const BATCH_SIZE = 8;
       let loadedCount = 0;
 
@@ -452,7 +454,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
         let meteoData: any[] = [];
         try {
-          const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&current=temperature_2m&timezone=auto`, { signal });
+          const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m&hourly=precipitation&forecast_days=3&timezone=auto`, { signal });
           if (wRes.ok) {
             const d = await wRes.json();
             meteoData = Array.isArray(d) ? d : [d];
@@ -471,10 +473,46 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
               const cityIndex = i + idx;
               const { lat, lng } = city;
               try {
-                // Process Temperature from pre-fetched bulk array
                 let temp: number | null = null;
+                let floodRisk = 0;
+                let floodFactors: string[] = [];
+
                 if (meteoData[cityIndex]?.current?.temperature_2m != null) {
-                  temp = meteoData[cityIndex].current.temperature_2m;
+                  const current = meteoData[cityIndex].current;
+                  const hourly = meteoData[cityIndex].hourly?.precipitation || [];
+                  temp = current.temperature_2m;
+
+                  // Calculate ML features
+                  const precip24h = hourly.slice(0, 24).reduce((a: number, b: number) => a + (b || 0), 0);
+                  const precip48h = hourly.slice(0, 48).reduce((a: number, b: number) => a + (b || 0), 0);
+                  const precip72h = hourly.reduce((a: number, b: number) => a + (b || 0), 0);
+                  const maxHourly = Math.max(...hourly.map((v: number) => v || 0), 0);
+                  const is_monsoon = [5, 6, 7, 8, 9].includes(new Date().getMonth()) ? 1 : 0;
+                  const is_coastal = (lng < 74 || lng > 83 || (lat < 16 && lng > 74)) ? 1 : 0;
+
+                  // Run ML model inference
+                  const prediction = await predictFlood({
+                    rainfall_24h_mm: precip24h,
+                    rainfall_48h_mm: precip48h,
+                    rainfall_72h_mm: precip72h,
+                    max_hourly_rate_mm: maxHourly,
+                    temperature_c: temp as number,
+                    humidity_pct: current.relative_humidity_2m || 50,
+                    pressure_hpa: current.surface_pressure || 1010,
+                    wind_speed_kmh: current.wind_speed_10m || 10,
+                    is_monsoon,
+                    is_coastal
+                  });
+
+                  if (prediction) {
+                    floodRisk = prediction.probability;
+                    floodFactors = [
+                      `Prec 72h: ${precip72h.toFixed(1)}mm`,
+                      `Max Hrly: ${maxHourly.toFixed(1)}mm/h`,
+                      `Soil Moist: ${current.relative_humidity_2m || 50}%`,
+                      `Wind: ${current.wind_speed_10m || 10}km/h`
+                    ];
+                  }
                 }
 
                 // Fetch AQI individually since WAQI doesn't support bulk lat/lng natively
@@ -490,7 +528,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
                 }
 
                 if (temp !== null && aqi !== null) {
-                  dataMap.set(`${lat},${lng}`, { temp, aqi });
+                  dataMap.set(`${lat},${lng}`, { temp, aqi, floodRisk, floodFactors });
                 }
               } catch {
                 // Ignore per-city failures
@@ -565,57 +603,9 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
         const [lat, lng] = key.split(',').map(Number);
 
         // ── Real-data risk model ──────────────────────────────────────────────
-        // Build risk purely from live temperature and AQI readings
-        let dynamicRisk = 0.0;
-        const riskFactors: string[] = [];
-
-        // Temperature contribution (0 – 0.55)
-        if (data.temp >= 45) {
-          dynamicRisk += 0.55;
-          riskFactors.push(`Severe heatwave: ${data.temp.toFixed(1)}°C`);
-        } else if (data.temp >= 40) {
-          dynamicRisk += 0.45;
-          riskFactors.push(`Heatwave: ${data.temp.toFixed(1)}°C`);
-        } else if (data.temp >= 35) {
-          dynamicRisk += 0.30;
-          riskFactors.push(`High temp: ${data.temp.toFixed(1)}°C`);
-        } else if (data.temp >= 28) {
-          dynamicRisk += 0.18;
-          riskFactors.push(`Warm: ${data.temp.toFixed(1)}°C`);
-        } else if (data.temp <= 4) {
-          dynamicRisk += 0.45;
-          riskFactors.push(`Severe cold wave: ${data.temp.toFixed(1)}°C`);
-        } else if (data.temp <= 10) {
-          dynamicRisk += 0.25;
-          riskFactors.push(`Cold wave: ${data.temp.toFixed(1)}°C`);
-        } else {
-          dynamicRisk += 0.12;
-          riskFactors.push(`Normal temp: ${data.temp.toFixed(1)}°C`);
-        }
-
-        // AQI contribution (0 – 0.50)
-        if (data.aqi >= 300) {
-          dynamicRisk += 0.50;
-          riskFactors.push(`Hazardous AQI: ${data.aqi}`);
-        } else if (data.aqi >= 200) {
-          dynamicRisk += 0.38;
-          riskFactors.push(`Very unhealthy AQI: ${data.aqi}`);
-        } else if (data.aqi >= 150) {
-          dynamicRisk += 0.25;
-          riskFactors.push(`Unhealthy AQI: ${data.aqi}`);
-        } else if (data.aqi >= 100) {
-          dynamicRisk += 0.15;
-          riskFactors.push(`Moderate AQI: ${data.aqi}`);
-        } else if (data.aqi >= 50) {
-          dynamicRisk += 0.08;
-          riskFactors.push(`Good AQI: ${data.aqi}`);
-        } else {
-          dynamicRisk += 0.03;
-          riskFactors.push(`Excellent AQI: ${data.aqi}`);
-        }
-
-        // Cap at 1.0
-        dynamicRisk = Math.min(1.0, dynamicRisk);
+        // Driven 100% by live TF.js Neural Network Inference
+        let dynamicRisk = data.floodRisk || 0;
+        const riskFactors: string[] = data.floodFactors || ["Awaiting ML Inference..."];
 
         const level = getIntensityRange(dynamicRisk);
         if (!activeFilters.has(level)) return;
@@ -638,8 +628,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
           weight: 0,
           fillOpacity: 0,
         }).bindTooltip(`
-          <div style="font-size: 11px; padding: 4px; max-width: 220px;">
-            <strong>Disaster Risk Score</strong><br/>
+            <strong>ML Flood Risk Score</strong><br/>
             Level: <strong style="color: ${getColor(dynamicRisk, 'disaster', 1)}">${level.toUpperCase()}</strong>
             &nbsp;(${(dynamicRisk * 100).toFixed(0)}%)<br/>
             <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.2);">
@@ -742,7 +731,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
                 className="gap-2 rounded-md transition-all duration-300 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50"
               >
                 <AlertTriangle className="h-4 w-4" />
-                <span className="hidden sm:inline">Risk</span>
+                <span className="hidden sm:inline">Flood Risk ML</span>
               </TabsTrigger>
               <TabsTrigger
                 value="temperature"
@@ -943,23 +932,19 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
             <p className="text-[9px] md:text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Risk is calculated from</p>
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px]">🗺️</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground">Geographic hazard zone (base score)</span>
+                <span className="text-[10px]">🤖</span>
+                <span className="text-[9px] md:text-[10px] text-muted-foreground">TensorFlow.js Neural Network</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px]">🌡️</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground">Real-time temperature (Open-Meteo)</span>
+                <span className="text-[10px]">🌦️</span>
+                <span className="text-[9px] md:text-[10px] text-muted-foreground">10 Live Open-Meteo Features</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px]">💨</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground">Live AQI / air quality (WAQI API)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px]">🔴</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground">Active USGS / GDACS disaster events</span>
+                <span className="text-[10px]">📊</span>
+                <span className="text-[9px] md:text-[10px] text-muted-foreground">Rainfall, Humidity, Pressure, Wind</span>
               </div>
             </div>
-            <p className="text-[9px] text-muted-foreground/70 mt-1.5 leading-tight italic">Hover any region on the map for exact factor breakdown</p>
+            <p className="text-[9px] text-muted-foreground/70 mt-1.5 leading-tight italic">Hover any region on the map for ML feature extraction</p>
           </div>
         </div>
       )}

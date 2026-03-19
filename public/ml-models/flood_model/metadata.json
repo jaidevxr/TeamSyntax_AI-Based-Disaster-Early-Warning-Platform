@@ -1,0 +1,74 @@
+{
+  "model_name": "India Flood Prediction Neural Network",
+  "version": "1.0",
+  "architecture": "Dense(32,ReLU) \u2192 Dropout(0.3) \u2192 Dense(16,ReLU) \u2192 Dropout(0.2) \u2192 Dense(8,ReLU) \u2192 Dense(1,Sigmoid)",
+  "dataset": "india_flood_data.csv",
+  "dataset_size": 2500,
+  "train_size": 2000,
+  "test_size": 500,
+  "features": [
+    "rainfall_24h_mm",
+    "rainfall_48h_mm",
+    "rainfall_72h_mm",
+    "max_hourly_rate_mm",
+    "temperature_c",
+    "humidity_pct",
+    "pressure_hpa",
+    "wind_speed_kmh",
+    "is_monsoon",
+    "is_coastal"
+  ],
+  "target": "flood_occurred",
+  "scaler": {
+    "mean": [
+      25.108799999999995,
+      40.03064999999994,
+      49.76905000000001,
+      3.213100000000006,
+      25.091600000000028,
+      67.2908499999999,
+      1009.5207499999997,
+      9.203200000000015,
+      0.3355,
+      0.3195
+    ],
+    "std": [
+      40.65231669363997,
+      69.81476094335275,
+      84.88767399980694,
+      7.1968193245350065,
+      5.846415948254106,
+      16.858601996532812,
+      7.6041517894831525,
+      9.398770651526714,
+      0.47216496058051877,
+      0.46628290768587477
+    ],
+    "feature_names": [
+      "rainfall_24h_mm",
+      "rainfall_48h_mm",
+      "rainfall_72h_mm",
+      "max_hourly_rate_mm",
+      "temperature_c",
+      "humidity_pct",
+      "pressure_hpa",
+      "wind_speed_kmh",
+      "is_monsoon",
+      "is_coastal"
+    ]
+  },
+  "metrics": {
+    "accuracy": 0.96,
+    "precision": 0.8095,
+    "recall": 0.8644,
+    "f1_score": 0.8361,
+    "auc_roc": 0.9906
+  },
+  "training": {
+    "epochs_run": 57,
+    "optimizer": "Adam (lr=0.001)",
+    "loss": "binary_crossentropy",
+    "early_stopping": "val_auc, patience=15"
+  },
+  "description": "Neural network trained on 2500 Indian weather samples to predict flood occurrence. Features include rainfall (24h/48h/72h), humidity, pressure, temperature, wind speed, monsoon season flag, and coastal flag."
+}

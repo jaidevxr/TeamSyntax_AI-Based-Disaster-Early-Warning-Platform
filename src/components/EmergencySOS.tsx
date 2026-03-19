@@ -42,7 +42,7 @@ const EmergencySOS: React.FC<EmergencySOSProps> = ({ userLocation, nearbyDisaste
 
   const handleSendAlert = async () => {
     const contacts = getContactsFromStorage();
-    
+
     if (contacts.length === 0) {
       toast.error('No emergency contacts found. Please add contacts first.');
       setShowContactsDialog(true);
@@ -97,11 +97,11 @@ const EmergencySOS: React.FC<EmergencySOSProps> = ({ userLocation, nearbyDisaste
       if (!navigator.onLine) {
         // Queue for later if offline
         await queueEmergencyAlert(alertPayload);
-        
+
         toast.warning('You are offline', {
           description: 'Emergency alert queued and will be sent when connection is restored.',
         });
-        
+
         setShowDialog(false);
         setStatus('');
         return;
@@ -147,7 +147,7 @@ const EmergencySOS: React.FC<EmergencySOSProps> = ({ userLocation, nearbyDisaste
         >
           <Users className={`${compact ? 'h-4 w-4 md:h-5 md:w-5' : 'h-5 w-5 md:h-6 md:w-6'} text-primary`} />
         </Button>
-        
+
         <Button
           aria-label="Send emergency alert"
           size={compact ? 'sm' : 'lg'}
@@ -166,7 +166,7 @@ const EmergencySOS: React.FC<EmergencySOSProps> = ({ userLocation, nearbyDisaste
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertCircle className="h-5 w-5" />
-              Send Emergency Alert
+              Send Personal Emergency Alert
             </DialogTitle>
             <DialogDescription>
               This will immediately notify your emergency contacts with your current location and status.
