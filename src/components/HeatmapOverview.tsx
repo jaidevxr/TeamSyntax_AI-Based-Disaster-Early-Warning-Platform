@@ -551,24 +551,37 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       let loadedCount = 0;
 
       try {
-        // Fetch all temperatures in a single bulk API request with retry
-        const lats = cities.map(c => c.lat).join(',');
-        const lngs = cities.map(c => c.lng).join(',');
+        // Fetch weather in CHUNKED bulk requests (15 cities each) to avoid 429 rate limits
+        const METEO_CHUNK = 15;
+        let meteoData: any[] = new Array(cities.length).fill(null);
 
-        let meteoData: any[] = [];
-        try {
-          const wRes = await fetchWithRetry(
-            `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m&hourly=precipitation&forecast_days=3&timezone=auto`,
-            { signal },
-            3
-          );
-          if (wRes.ok) {
-            const d = await wRes.json();
-            meteoData = Array.isArray(d) ? d : [d];
+        for (let c = 0; c < cities.length; c += METEO_CHUNK) {
+          if (signal.aborted) break;
+          const chunk = cities.slice(c, c + METEO_CHUNK);
+          const chunkLats = chunk.map(ci => ci.lat).join(',');
+          const chunkLngs = chunk.map(ci => ci.lng).join(',');
+          try {
+            const wRes = await fetchWithRetry(
+              `https://api.open-meteo.com/v1/forecast?latitude=${chunkLats}&longitude=${chunkLngs}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m&hourly=precipitation&forecast_days=3&timezone=auto`,
+              { signal },
+              3
+            );
+            if (wRes.ok) {
+              const d = await wRes.json();
+              const arr = Array.isArray(d) ? d : [d];
+              arr.forEach((item: any, idx: number) => {
+                meteoData[c + idx] = item;
+              });
+            }
+          } catch (e) {
+            console.warn(`⚠️ Weather chunk ${c}-${c + METEO_CHUNK} failed`, e);
           }
-        } catch (e) {
-          console.error("Failed to fetch bulk weather array", e);
+          // Delay between chunks to stay under rate limit
+          if (c + METEO_CHUNK < cities.length) {
+            await new Promise(r => setTimeout(r, 1500));
+          }
         }
+        console.log(`🌦️ Weather data fetched for ${meteoData.filter(Boolean).length}/${cities.length} cities`);
 
         for (let i = 0; i < cities.length; i += BATCH_SIZE) {
           if (signal.aborted) break;
@@ -745,7 +758,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
           weight: 0,
           fillOpacity: 0,
         }).bindTooltip(`
-            <strong>ML Flood Risk Score</strong><br/>
+            <strong>Disaster Risk Score</strong><br/>
             Level: <strong style="color: ${getColor(dynamicRisk, 'disaster', 1)}">${level.toUpperCase()}</strong>
             &nbsp;(${(dynamicRisk * 100).toFixed(0)}%)<br/>
             <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.2);">
@@ -850,7 +863,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
                 className="gap-2 rounded-md transition-all duration-300 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted/50 py-2 px-3 sm:px-4"
               >
                 <AlertTriangle className="h-4 w-4" />
-                <span className="hidden sm:inline text-xs font-semibold">Flood Risk ML</span>
+                <span className="hidden sm:inline text-xs font-semibold">Risk</span>
               </TabsTrigger>
               <TabsTrigger
                 value="temperature"
