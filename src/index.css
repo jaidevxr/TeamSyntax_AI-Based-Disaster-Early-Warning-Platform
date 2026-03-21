@@ -21,10 +21,10 @@ All colors MUST be HSL.
     --popover-foreground: 154 30% 12%;
 
     /* Primary - Professional Nature Green */
-    --primary: 154 50% 25%;
+    --primary: 154 65% 18%;
     --primary-foreground: 45 20% 98%;
-    --primary-glow: 154 40% 35%;
-    --primary-dark: 154 60% 15%;
+    --primary-glow: 154 50% 28%;
+    --primary-dark: 154 80% 10%;
 
     /* Secondary - Soft Sage Cream */
     --secondary: 45 15% 92%;
@@ -111,27 +111,57 @@ All colors MUST be HSL.
 
     --border: 150 8% 22%;
     --input: 150 10% 16%;
-    --ring: 142 65% 50%;
+    --ring: 142 70% 55%;
 
-    /* Dark nature gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(142 65% 50%), hsl(142 70% 60%));
-    --gradient-secondary: linear-gradient(135deg, hsl(150 10% 18%), hsl(160 50% 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(150 15% 8%), hsl(150 12% 10%));
-    --gradient-card: linear-gradient(135deg, hsl(150 12% 12%), hsl(150 10% 10%));
+    /* Dark nature gradients - High Contrast */
+    --gradient-primary: linear-gradient(135deg, hsl(142 70% 55%), hsl(142 80% 65%));
+    --gradient-secondary: linear-gradient(135deg, hsl(150 12% 12%), hsl(160 50% 45%));
+    --gradient-hero: linear-gradient(135deg, hsl(150 15% 5%), hsl(150 12% 8%));
+    --gradient-card: linear-gradient(135deg, hsl(150 15% 10%), hsl(150 12% 8%));
 
-    /* Dark nature shadows with green glow */
-    --shadow-glow: 0 8px 32px -8px hsl(142 65% 50% / 0.4);
-    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.6);
-    --shadow-elevated: 0 12px 40px -12px hsl(142 65% 50% / 0.2);
+    /* Dark nature shadows with refined glow */
+    --shadow-glow: 0 8px 32px -8px hsl(142 70% 55% / 0.3);
+    --shadow-card: 0 4px 20px -4px hsl(0 0% 0% / 0.7);
+    --shadow-elevated: 0 12px 40px -12px hsl(142 70% 55% / 0.15);
 
-    --sidebar-background: 150 15% 8%;
+    --sidebar-background: 150 15% 5%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 142 65% 50%;
+    --sidebar-primary: 142 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 150 10% 18%;
+    --sidebar-accent: 150 12% 15%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 150 8% 22%;
-    --sidebar-ring: 142 65% 50%;
+    --sidebar-border: 150 10% 18%;
+    --sidebar-ring: 142 70% 55%;
+  }
+  /* ── Saarthi Ultimate Aesthetic System ────────────────────────────── */
+  .glass-panel {
+    @apply bg-background/60 dark:bg-black/40 backdrop-blur-[24px] border border-white/20 dark:border-white/10 shadow-[0_12px_48px_0_rgba(0,0,0,0.4)];
+  }
+
+  .glass-card {
+    @apply bg-white/10 dark:bg-white/5 border border-white/10 dark:border-white/5 backdrop-blur-md hover:bg-white/15 dark:hover:bg-white/10 transition-all duration-500;
+  }
+
+  .saarthi-aura-blue {
+    box-shadow: 0 0 15px 1px rgba(59, 130, 246, 0.3);
+  }
+
+  .saarthi-aura-amber {
+    box-shadow: 0 0 15px 1px rgba(245, 158, 11, 0.3);
+  }
+
+  .saarthi-aura-red {
+    box-shadow: 0 0 20px 2px rgba(239, 68, 68, 0.4);
+  }
+
+  /* No Keyframes for Aura - Static Stability */
+
+  .message-glass-user {
+    @apply bg-primary/95 backdrop-blur-xl border border-white/30 shadow-2xl text-primary-foreground;
+  }
+
+  .message-glass-ai {
+    @apply bg-white/60 dark:bg-white/10 backdrop-blur-xl border border-white/40 dark:border-white/20 shadow-xl text-foreground;
   }
 }
 
@@ -268,33 +298,19 @@ All colors MUST be HSL.
     }
   }
 
+  /* Static Stability for Shimmer */
   .animate-shimmer {
-    animation: shimmer 3s infinite linear;
-    background: linear-gradient(90deg,
-        transparent 0%,
-        hsl(var(--primary) / 0.1) 50%,
-        transparent 100%);
+    background: linear-gradient(90deg, transparent, hsl(var(--primary)/0.05), transparent);
     background-size: 200% 100%;
   }
 
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
+  @keyframes breathe {
+    0%, 100% { opacity: 0.05; transform: scale(1); }
+    50% { opacity: 0.1; transform: scale(1.05); }
   }
 
-  .animate-pulse-subtle {
-    animation: pulse-subtle 3s ease-in-out infinite;
-  }
-
-  @keyframes pulse-subtle {
-
-    0%,
-    100% {
-      opacity: 1;
-    }
-
-    50% {
-      opacity: 0.85;
-    }
+  .animate-breathe {
+    animation: breathe 15s ease-in-out infinite;
   }
 
   @keyframes leaf-fall {

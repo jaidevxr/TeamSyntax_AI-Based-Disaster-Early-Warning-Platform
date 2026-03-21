@@ -371,8 +371,8 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
           {!isCollapsed && (
             <div className="flex items-center justify-between text-xs bg-muted/30 rounded-lg p-2.5 border border-border/20">
               <span className="text-muted-foreground font-medium">System Status</span>
-              <Badge variant="outline" className="text-success border-success/40 text-[10px] bg-success/10 px-2">
-                <Activity className="h-3 w-3 mr-1 animate-pulse" />
+              <Badge variant="outline" className="text-success border-success/40 text-[10px] bg-success/10 px-2 uppercase tracking-widest font-bold">
+                <Activity className="h-3 w-3 mr-1" />
                 Active
               </Badge>
             </div>

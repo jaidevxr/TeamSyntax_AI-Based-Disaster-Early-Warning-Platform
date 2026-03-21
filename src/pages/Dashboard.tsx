@@ -12,6 +12,7 @@ import HeatmapOverview from '@/components/HeatmapOverview';
 import VolunteerHub from '@/components/VolunteerHub';
 import EmergencyServicesMap from '@/components/EmergencyServicesMap';
 import OfflineIndicator from '@/components/OfflineIndicator';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -121,6 +122,20 @@ const Dashboard: React.FC = () => {
 
     window.addEventListener('changeTab', handleTabChange as EventListener);
     return () => window.removeEventListener('changeTab', handleTabChange as EventListener);
+  }, []);
+
+  // 🛰️ Saarthi Ultimate: Centralized Event Bus for Agent Actions
+  useEffect(() => {
+    const handleLayerChange = (event: CustomEvent) => {
+      const type = event.detail;
+      console.log(`📡 Saarthi Agent: Switching Map Layer to ${type}`);
+      // If we had a layer state in Dashboard, we'd update it here.
+      // For now, we'll dispatch it to the HeatmapOverview/Map component.
+      window.dispatchEvent(new CustomEvent('syncMapLayer', { detail: type }));
+    };
+
+    window.addEventListener('changeMapLayer', handleLayerChange as EventListener);
+    return () => window.removeEventListener('changeMapLayer', handleLayerChange as EventListener);
   }, []);
 
   // 🧠 Neural Correlation Engine: ML Logic for Risk Assessment
@@ -289,7 +304,7 @@ const Dashboard: React.FC = () => {
               nearbyDisasters={disasters.filter(d => {
                 if (!userLocation) return false;
                 const distance = calculateDistance(userLocation, d.location);
-                return distance < 1000; // Unified 1000km Regional Radius
+                return distance < 1000;
               })}
             />
           </div>
@@ -443,6 +458,13 @@ const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-background relative">
       <AnimatedBackground />
 
+      {/* Global Urgency Aura (Sync with Neural Correlation) */}
+      {neuralCorrelation.riskLevel !== 'low' && (
+        <div className={`fixed inset-0 pointer-events-none z-[1] transition-all duration-1000 ${
+          neuralCorrelation.riskLevel === 'high' ? 'bg-red-500/5 animate-pulse' : 'bg-amber-500/5'
+        }`} />
+      )}
+
       <div className="flex h-screen w-full">
         {/* Sidebar */}
         <DashboardSidebar
@@ -466,34 +488,20 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 w-full h-full overflow-hidden relative">
-          {/* ═══ LANGUAGE TOGGLE (FREE UPGRADE) ═══ */}
-          <div className="absolute top-4 right-4 z-[3001] flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className="bg-background/80 backdrop-blur-md border-primary/20 text-[10px] font-bold py-1 px-3 shadow-xl flex items-center gap-1.5 cursor-pointer hover:bg-primary/5 transition-all select-none"
-              onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
-            >
-              <Globe className="h-3 w-3 text-primary animate-pulse" />
-              {language === 'en' ? 'ENGLISH' : 'हिन्दी'}
-            </Badge>
-          </div>
+        <main className="flex-1 w-full h-full overflow-hidden relative pb-16 md:pb-0">
 
           <div className="h-full w-full">
             {renderTabContent()}
           </div>
         </main>
 
-        {/* Mobile Sidebar Toggle */}
-        {sidebarCollapsed && (
-          <button
-            aria-label="Open sidebar"
-            onClick={() => setSidebarCollapsed(false)}
-            className="fixed left-3 top-3 z-[1002] md:hidden h-10 w-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md bg-foreground/10 border border-border/30 hover:bg-foreground/20 active:scale-95 transition-all"
-          >
-            <Menu className="h-4.5 w-4.5 text-foreground" />
-          </button>
-        )}
+        {/* Mobile Bottom Navigation */}
+        <MobileBottomNav
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          onOpenMenu={() => setSidebarCollapsed(false)}
+          language={language}
+        />
 
       </div>
     </div>
