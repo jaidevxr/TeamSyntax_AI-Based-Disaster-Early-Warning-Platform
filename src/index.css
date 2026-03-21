@@ -195,7 +195,7 @@ All colors MUST be HSL.
   }
 
   .glass-strong {
-    @apply bg-white/80 dark:bg-slate-950/40 backdrop-blur-xl border border-slate-200/60 dark:border-white/5 rounded-xl;
+    @apply bg-orange-50/70 dark:bg-[#06140c]/80 backdrop-blur-xl border border-orange-200/40 dark:border-emerald-900/30 rounded-xl;
     box-shadow: var(--shadow-elevated);
   }
 

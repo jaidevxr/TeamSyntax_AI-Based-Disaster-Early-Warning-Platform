@@ -33,6 +33,17 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@600;700;800&display=swap"
     rel="stylesheet">
+  <script>
+    // Blocking script to prevent Flash of Unstyled Content (FOUC)
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // For the premium Nature theme, we default to dark if no preference is saved
+    if (savedTheme === 'dark' || (!savedTheme && prefersDark) || !savedTheme) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 

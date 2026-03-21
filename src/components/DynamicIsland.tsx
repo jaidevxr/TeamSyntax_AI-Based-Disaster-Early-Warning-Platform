@@ -18,8 +18,14 @@ interface WeatherData {
 const DynamicIsland: React.FC<DynamicIslandProps> = ({ userLocation }) => {
   const navigate = useNavigate();
   const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    // Sync with index.html blocking script
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved === 'dark';
+      // Default to true (dark) for the premium "Nature" theme if no preference is found
+      return true;
+    }
+    return true;
   });
   const [cityName, setCityName] = useState<string>('Detecting...');
   const [isExpanded, setIsExpanded] = useState(false);
