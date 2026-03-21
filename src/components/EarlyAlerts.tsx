@@ -524,12 +524,6 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
     setGeneratingBrief(true);
     setAiBrief(null);
     try {
-      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
-      if (!GROQ_API_KEY) {
-        setAiBrief("AI features require a valid Groq API key.");
-        return;
-      }
-
       const promptContext = `
         Current Time: ${new Date().toLocaleString()}
         Location: ${userLocation?.lat}, ${userLocation?.lng} (${userLocation?.name || "Unknown"})
@@ -538,40 +532,36 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
         ML Seismic Risk P(quake): ${((data.seismicModel?.probability || 0) * 100).toFixed(1)}%
       `;
 
-      const res = await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${GROQ_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are the Chief Resilience AI for India. You synthesize live machine learning environmental models into a concise, 2-paragraph executive brief for the user. Explicitly mention the AI models (like ANN Landslide, or TF.js Neural Network Flood & Earthquake Risk models) to show sophistication. End with 2 highly actionable bullet points. Keep it brief, professional, and urgent if needed. Do not use filler intro text.",
-              },
-              {
-                role: "user",
-                content: `Please provide an executive brief based on this live telemetry:\n${promptContext}`,
-              },
-            ],
-            max_tokens: 350,
-          }),
-        },
-      );
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data: aiData, error } = await supabase.functions.invoke("generate-ai-brief", {
+        body: {
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are the Chief Resilience AI for India. You synthesize live machine learning environmental models into a concise, 2-paragraph executive brief for the user. Explicitly mention the AI models (like ANN Landslide, or TF.js Neural Network Flood & Earthquake Risk models) to show sophistication. End with 2 highly actionable bullet points. Keep it brief, professional, and urgent if needed. Do not use filler intro text.",
+            },
+            {
+              role: "user",
+              content: `Please provide an executive brief based on this live telemetry:\n${promptContext}`,
+            },
+          ]
+        }
+      });
 
-      if (!res.ok) throw new Error("Groq fetch failed");
-      const json = await res.json();
-      setAiBrief(json.choices[0].message.content);
-    } catch (e) {
+      if (error) {
+        if (error.context?.status === 429 || error.message?.includes("Rate limit")) {
+          throw new Error("Rate limit exceeded. Please wait a minute before generating another brief.");
+        }
+        throw new Error(error.message || "Failed to generate AI brief");
+      }
+
+      if (!aiData?.message) throw new Error("Empty AI response");
+
+      setAiBrief(aiData.message);
+    } catch (e: any) {
       console.error("Failed to generate AI brief:", e);
-      setAiBrief(
-        "Failed to generate AI executive brief. Please check API keys.",
-      );
+      setAiBrief(e.message || "Failed to generate AI executive brief. Please check API keys.");
     } finally {
       setGeneratingBrief(false);
     }

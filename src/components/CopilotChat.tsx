@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { Send, MapPin, Loader2, Bot, Navigation, Languages, WifiOff, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -176,9 +177,6 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
     setLoading(true);
 
     try {
-      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY as string;
-      if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY not configured');
-
       const allMessages = [...messages, userMessage];
 
       // Build an enriched system prompt with real context
@@ -221,34 +219,23 @@ If asked something completely unrelated to disasters/health/emergencies, politel
         ...trimmedMessages.map(m => ({ role: m.role, content: m.content })),
       ];
 
-      const groqResponse = await fetch(
-        'https://api.groq.com/openai/v1/chat/completions',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${GROQ_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: groqMessages,
-            max_tokens: 1024,
-          }),
+      // Route securely through Supabase Edge Functions with built-in rate limiting
+      const { data, error } = await supabase.functions.invoke('copilot-chat', {
+        body: { messages: groqMessages }
+      });
+
+      if (error) {
+        if (error.context?.status === 429 || error.message?.includes('Rate limit')) {
+          throw new Error('Rate limit exceeded. Please wait a minute.');
         }
-      );
-
-      if (!groqResponse.ok) {
-        const errData = await groqResponse.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `Groq API error: ${groqResponse.status}`);
+        throw new Error(error.message || 'Failed to communicate with AI server');
       }
 
-      const groqData = await groqResponse.json();
-
-      if (!groqData.choices || groqData.choices.length === 0) {
-        throw new Error(groqData.error?.message || 'No response from Groq');
+      if (!data?.message) {
+        throw new Error('No response from AI server');
       }
 
-      const aiText = groqData.choices[0].message.content;
+      const aiText = data.message;
 
 
       // Parse the response to extract facility data if present

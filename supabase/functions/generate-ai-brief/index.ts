@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Simple in-memory rate limiter (Token Bucket per isolate)
+// Simple in-memory rate limiter per edge node worker (5 req / minute)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 function checkRateLimit(ip: string, maxRequests: number, windowMs: number): boolean {
@@ -30,25 +30,21 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Rate Limiting Check (15 requests per minute per IP)
     const ip = req.headers.get("x-forwarded-for") || "unknown_ip";
-    if (!checkRateLimit(ip, 15, 60 * 1000)) {
-      return new Response(
-        JSON.stringify({ error: "Rate limit exceeded. Please wait a moment." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // More strict limit: 5 brief generations per minute
+    if (!checkRateLimit(ip, 5, 60 * 1000)) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please wait a minute before generating another brief." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
     }
+    
+    const { messages, model = "llama-3.3-70b-versatile" } = await req.json();
 
-    const { messages } = await req.json();
-
-    // GROQ_API_KEY is stored as a Supabase secret — never in client code or GitHub
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
     if (!GROQ_API_KEY) {
       throw new Error("GROQ_API_KEY secret is not configured in Supabase");
     }
-
-    // Build messages array strictly from client request to support dynamic prompts
-    const groqMessages = (messages || []).map((m: any) => ({ role: m.role, content: m.content }));
 
     const groqResponse = await fetch(
       "https://api.groq.com/openai/v1/chat/completions",
@@ -59,8 +55,8 @@ serve(async (req) => {
           "Authorization": `Bearer ${GROQ_API_KEY}`,
         },
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: groqMessages,
+          model,
+          messages,
           max_tokens: 1024,
         }),
       }
@@ -68,8 +64,12 @@ serve(async (req) => {
 
     const groqData = await groqResponse.json();
 
+    if (!groqResponse.ok) {
+      throw new Error(groqData.error?.message || "Groq request failed");
+    }
+
     if (!groqData.choices || groqData.choices.length === 0) {
-      throw new Error(groqData.error?.message || JSON.stringify(groqData));
+      throw new Error("Empty response from Groq");
     }
 
     const aiText = groqData.choices[0].message.content;
@@ -81,11 +81,11 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Copilot error:", error);
+    console.error("Generate Brief error:", error);
 
     return new Response(
       JSON.stringify({
-        message: "AI temporarily unavailable. Please call 112 in emergency.",
+        message: "Failed to generate AI brief.",
         error: error instanceof Error ? error.message : "Unknown error",
       }),
       {
