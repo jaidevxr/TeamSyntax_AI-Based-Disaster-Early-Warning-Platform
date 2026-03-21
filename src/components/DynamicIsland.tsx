@@ -143,7 +143,7 @@ const DynamicIsland: React.FC<DynamicIslandProps> = ({ userLocation }) => {
 
   return (
     <div
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-[1001] hidden md:block"
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-[1001] hidden lg:block"
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
     >

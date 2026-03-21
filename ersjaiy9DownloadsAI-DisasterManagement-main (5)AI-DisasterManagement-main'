@@ -1,0 +1,29 @@
+[33mcommit 5e6e1bf8901612a2e2da3653977f7c0fc6bf3b7f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mprototype[m[33m, [m[1;31morigin/prototype[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: jaidevxr <jaiy9956@gmail.com>
+Date:   Sat Mar 21 20:14:15 2026 +0530
+
+    fix(ui): absolute banishment of all hardcoded hex colors from weather widget for total theme support
+
+[33mcommit 737cd7ae2487b5083a75dbe74973f07b1f012b61[m
+Author: jaidevxr <jaiy9956@gmail.com>
+Date:   Sat Mar 21 20:09:07 2026 +0530
+
+    fix(ui): activate saarthi action buttons and improve weather widget dark mode
+
+[33mcommit 1627ae95116ef68434a9f0f19c257b88302335b5[m
+Author: jaidevxr <jaiy9956@gmail.com>
+Date:   Sat Mar 21 20:00:42 2026 +0530
+
+    fix(saarthi): remove fake alerts by adding strict distance filtering to pulse interjections
+
+[33mcommit a1384a86a9b2907033871a9ab39b1cfb348c9803[m
+Author: jaidevxr <jaiy9956@gmail.com>
+Date:   Sat Mar 21 19:56:56 2026 +0530
+
+    fix(api): route emergency facility fetching through v1-nearby backend to bypass CORS and 504 limits
+
+[33mcommit d262075b6bc42751919c7bce5615055f80abe2a7[m
+Author: jaidevxr <jaiy9956@gmail.com>
+Date:   Sat Mar 21 19:50:47 2026 +0530
+
+    update: push all remaining modifications

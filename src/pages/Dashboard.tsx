@@ -297,7 +297,7 @@ const Dashboard: React.FC = () => {
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="h-full">
+          <div className="h-full pb-16 md:pb-0">
             <HeatmapOverview
               disasters={disasters}
               userLocation={userLocation}
@@ -312,7 +312,7 @@ const Dashboard: React.FC = () => {
 
       case 'early-alerts':
         return (
-          <div className="h-full overflow-y-auto p-3 pt-16 md:pt-3 sm:p-6 md:pt-6">
+          <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
             <div className="mb-6 p-5 apple-glass rounded-2xl relative overflow-hidden group">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
               <div className="flex items-center gap-4 mb-4">
@@ -392,7 +392,7 @@ const Dashboard: React.FC = () => {
 
       case 'weather':
         return (
-          <div className="h-full overflow-y-auto p-3 pt-16 md:pt-3 sm:p-6 md:pt-6">
+          <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
             <WeatherWidget
               weather={weather}
               loading={loading.weather}
@@ -404,7 +404,7 @@ const Dashboard: React.FC = () => {
 
       case 'disasters':
         return (
-          <div className="h-full overflow-y-auto p-3 pt-16 md:pt-3 sm:p-6 md:pt-6">
+          <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
             <DisasterList
               disasters={[...disasters, ...predictions]}
               onDisasterClick={handleDisasterClick}
@@ -416,35 +416,35 @@ const Dashboard: React.FC = () => {
 
       case 'emergency-services':
         return (
-          <div className="h-full">
+          <div className="h-full pb-16 md:pb-0">
             <EmergencyServicesMap onFacilityClick={handleFacilityClick} userLocation={userLocation} />
           </div>
         );
 
       case 'resource-coordination':
         return (
-          <div className="h-full overflow-y-auto p-3 pt-16 md:pt-3 sm:p-6 md:pt-6">
+          <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
             <VolunteerHub />
           </div>
         );
 
       case 'ai-insights':
         return (
-          <div className="h-full">
+          <div className="h-full pb-16 md:pb-0">
             <CopilotChat userLocation={userLocation} facilities={facilities} />
           </div>
         );
 
       case 'guidelines':
         return (
-          <div className="h-full overflow-y-auto p-3 pt-16 md:pt-3 sm:p-6 md:pt-6">
+          <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
             <DisasterGuidelines />
           </div>
         );
 
       case 'alert-history':
         return (
-          <div className="h-full overflow-y-auto p-3 pt-16 md:pt-3 sm:p-6 md:pt-6">
+          <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
             <NotificationHistory />
           </div>
         );
