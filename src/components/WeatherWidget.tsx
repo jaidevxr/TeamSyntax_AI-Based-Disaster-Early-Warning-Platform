@@ -135,21 +135,19 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
   };
 
   const getAirQualityColor = (aqi?: number) => {
-    if (aqi === undefined || aqi === null) return 'bg-[#E5F5F9] border-[#A7D8F0]';
-    if (aqi <= 50) return 'bg-[#E5F5F9] border-[#A7D8F0]';
-    if (aqi <= 100) return 'bg-[#D9E4F5] border-[#A7D8F0]';
-    if (aqi <= 150) return 'bg-[#D9E4F5]/80 border-[#708090]';
-    if (aqi <= 200) return 'bg-[#708090]/20 border-[#708090]';
-    return 'bg-[#1E415D]/20 border-[#1E415D]';
+    if (aqi === undefined || aqi === null) return 'bg-sky-50/50 dark:bg-slate-900/40 border-sky-100 dark:border-slate-800';
+    if (aqi <= 50) return 'bg-sky-50/80 dark:bg-emerald-950/20 border-sky-200 dark:border-emerald-800/30';
+    if (aqi <= 100) return 'bg-blue-50/80 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800/30';
+    if (aqi <= 150) return 'bg-amber-50/80 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/30';
+    if (aqi <= 200) return 'bg-orange-50/80 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800/30';
+    return 'bg-red-50/80 dark:bg-red-950/20 border-red-200 dark:border-red-800/30';
   };
 
   const getUVColor = (uv?: number) => {
-    if (!uv) return 'bg-[#E5F5F9] border-[#A7D8F0]';
-    if (uv < 3) return 'bg-[#E5F5F9] border-[#A7D8F0]';
-    if (uv < 6) return 'bg-[#D9E4F5] border-[#A7D8F0]';
-    if (uv < 8) return 'bg-[#D9E4F5]/80 border-[#708090]';
-    if (uv < 11) return 'bg-[#708090]/20 border-[#708090]';
-    return 'bg-[#1E415D]/20 border-[#1E415D]';
+    if (!uv) return 'bg-sky-50/50 dark:bg-slate-900/40 border-sky-100 dark:border-slate-800';
+    if (uv < 3) return 'bg-sky-50/80 dark:bg-slate-900/40 border-sky-200 dark:border-slate-800';
+    if (uv < 6) return 'bg-amber-50/80 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30';
+    return 'bg-red-50/80 dark:bg-red-950/20 border-red-200 dark:border-red-900/30';
   };
 
   const getUVLabel = (uv?: number) => {
@@ -164,7 +162,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* City Search */}
-      <Card className="bg-[#E5F5F9] border-2 border-[#A7D8F0] p-3 sm:p-4">
+      <Card className="bg-sky-50/80 dark:bg-slate-900/50 backdrop-blur-md border-2 border-sky-100 dark:border-slate-800 p-3 sm:p-4 shadow-sm">
         <div className="space-y-3">
           <div ref={searchContainerRef} className="relative">
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -173,7 +171,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
               placeholder="Search city to view weather..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-[#E5F5F9] border-2 border-[#A7D8F0] focus:border-[#1E415D] text-[#1E415D]"
+              className="pl-10 bg-transparent border-2 border-sky-100 dark:border-slate-800 focus:border-sky-500 text-sky-900 dark:text-sky-100"
             />
             {isSearching && (
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -218,12 +216,12 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
       </Card>
 
       {/* Current Weather - Enhanced */}
-      <Card className="bg-[#E5F5F9] border-2 border-[#A7D8F0] p-4 sm:p-6">
+      <Card className="bg-sky-50/80 dark:bg-slate-900/50 backdrop-blur-md border-2 border-sky-100 dark:border-slate-800 p-4 sm:p-6 shadow-md shadow-sky-100/20 dark:shadow-none">
         <div className="flex items-start justify-between mb-4 sm:mb-6">
           <div className="min-w-0">
-            <h2 className="text-lg sm:text-2xl font-bold text-[#1E415D] flex items-center gap-2">
-              <Cloud className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
-              <span className="truncate">Current Weather</span>
+            <h2 className="text-lg sm:text-2xl font-black text-sky-900 dark:text-sky-50 flex items-center gap-2 tracking-tight uppercase">
+              <Cloud className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 text-sky-500" />
+              <span className="truncate">Climate Intelligence</span>
             </h2>
             <p className="text-muted-foreground flex items-center gap-1 mt-1 text-xs sm:text-sm">
               <MapPin className="h-3 w-3 flex-shrink-0" />
@@ -395,16 +393,16 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
         </div>
 
         {/* Comfort Index */}
-        <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-[#D9E4F5] to-[#E5F5F9] border border-[#A7D8F0]">
+        <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-sky-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 border border-sky-100 dark:border-slate-800">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Thermometer className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Comfort Level</span>
+              <Thermometer className="h-5 w-5 text-sky-500" />
+              <span className="font-semibold text-sky-900 dark:text-sky-100 uppercase text-xs tracking-wider">Comfort Level</span>
             </div>
-            <span className="text-sm font-medium text-primary">
+            <span className="text-xs font-black uppercase text-sky-600 dark:text-sky-400">
               {weather.temperature > 35 ? 'Very Hot' :
                 weather.temperature > 30 ? 'Hot' :
-                  weather.temperature > 25 ? 'Comfortable' :
+                  weather.temperature > 25 ? 'Perfect' :
                     weather.temperature > 15 ? 'Cool' : 'Cold'}
             </span>
           </div>
@@ -423,10 +421,10 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
 
       {/* Hourly Forecast - Next 24 Hours */}
       {weather.hourlyForecast && weather.hourlyForecast.length > 0 && (
-        <Card className="bg-[#E5F5F9] border-2 border-[#A7D8F0] p-4 sm:p-6">
+        <Card className="bg-sky-50/80 dark:bg-slate-900/50 backdrop-blur-md border-2 border-sky-100 dark:border-slate-800 p-4 sm:p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <Clock className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-base sm:text-xl">Hourly Forecast</h3>
+            <Clock className="h-5 w-5 text-sky-500" />
+            <h3 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-sky-900 dark:text-sky-100">Near-Term Forecast</h3>
           </div>
 
           {/* Temperature Chart */}
@@ -514,14 +512,14 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
 
       {/* Weather Alerts - Enhanced */}
       {weather.alerts.length > 0 && (
-        <Card className="p-6 border-2" style={{ backgroundColor: '#E5F5F9', borderColor: '#A7D8F0' }}>
+        <Card className="p-6 border-2 bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30">
           <div className="flex items-center gap-2 mb-6">
-            <div className="p-2 rounded-lg animate-pulse" style={{ backgroundColor: '#D9E4F5' }}>
-              <AlertCircle className="h-6 w-6" style={{ color: '#1E415D' }} />
+            <div className="p-2 rounded-lg animate-pulse bg-red-100 dark:bg-red-900/50">
+              <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
             </div>
             <div>
-              <h3 className="font-semibold text-xl" style={{ color: '#1E415D' }}>Active Weather Alerts</h3>
-              <p className="text-xs" style={{ color: '#708090' }}>
+              <h3 className="font-black text-sm uppercase tracking-widest text-red-900 dark:text-red-100">Critical Alerts</h3>
+              <p className="text-[10px] uppercase font-bold text-red-600/60 dark:text-red-400/60">
                 {weather.alerts.length} active warning{weather.alerts.length > 1 ? 's' : ''}
               </p>
             </div>
@@ -560,10 +558,10 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
       )}
 
       {/* 5-Day Forecast - Enhanced */}
-      <Card className="bg-[#E5F5F9] border-2 border-[#A7D8F0] p-4 sm:p-6">
+      <Card className="bg-sky-50/80 dark:bg-slate-900/50 backdrop-blur-md border-2 border-sky-100 dark:border-slate-800 p-4 sm:p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-4 sm:mb-6">
-          <Cloud className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-base sm:text-xl">5-Day Forecast</h3>
+          <Cloud className="h-5 w-5 text-sky-500" />
+          <h3 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-sky-900 dark:text-sky-100">Weekly Outlook</h3>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4">
           {weather.forecast.slice(0, 5).map((day, index) => (

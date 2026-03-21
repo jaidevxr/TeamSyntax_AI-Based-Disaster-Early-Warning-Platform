@@ -276,6 +276,30 @@ Rules:
     } finally { setLoading(false); }
   };
 
+  const handleActionClick = (token: string) => {
+    const action = token.replace('[ACTION:', '').replace(']', '');
+    const parts = action.split(':');
+    const cmd = parts[0];
+    const value = parts[1];
+
+    console.log(`📡 Saarthi UI Action triggered: ${cmd} (${value})`);
+
+    if (cmd === 'SHOW_FACILITIES') {
+      // Handled by inline facility cards mostly, but for buttons:
+      window.dispatchEvent(new CustomEvent('changeTab', { detail: 'emergency-services' }));
+    } else if (cmd === 'SHOW_CONTACTS' || cmd === 'EMERGENCY_CONTACTS') {
+      window.dispatchEvent(new CustomEvent('changeTab', { detail: 'guidelines' }));
+      toast({ title: "Emergency Contacts", description: "Switching to safety guidelines & numbers." });
+    } else if (cmd === 'SHOW_HEATMAP' || cmd === 'SHOW_MAP') {
+      window.dispatchEvent(new CustomEvent('changeTab', { detail: 'overview' }));
+      toast({ title: "Monitoring Map", description: "Switching to live disaster heatmap." });
+    } else if (cmd === 'SHOW_ALERTS') {
+      window.dispatchEvent(new CustomEvent('changeTab', { detail: 'early-alerts' }));
+    } else if (cmd === 'SHOW_WEATHER') {
+      window.dispatchEvent(new CustomEvent('changeTab', { detail: 'weather' }));
+    }
+  };
+
   const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
   const quickPrompts = [
     'Nearest hospital',
@@ -460,9 +484,12 @@ Rules:
                   )}
 
                   {/* Action pills */}
-                  {(msg.content.match(/\[ACTION:[^\]]+\]/g) || []).filter(t => !t.includes('SHOW_FACILITIES')).map((token, j) => (
-                    <button key={j}
-                      className="inline-flex items-center gap-1.5 bg-white/60 backdrop-blur-sm border border-sky-100 text-sky-500 text-[11px] font-semibold px-3 py-1.5 rounded-full mt-1 mr-1 hover:bg-sky-50 transition-colors">
+                  {((msg.content.match(/\[ACTION:[^\]]+\]/g) as string[]) || []).filter(t => !t.includes('SHOW_FACILITIES')).map((token, j) => (
+                    <button 
+                      key={j}
+                      onClick={() => handleActionClick(token)}
+                      className="inline-flex items-center gap-1.5 bg-white/60 backdrop-blur-sm border border-sky-100 text-sky-500 text-[11px] font-semibold px-3 py-1.5 rounded-full mt-1 mr-1 hover:bg-sky-500 hover:text-white transition-all active:scale-95 shadow-sm"
+                    >
                       {token.split(':')[1].replace(/_/g, ' ').replace(']', '')} <ArrowRight className="w-3 h-3" />
                     </button>
                   ))}
