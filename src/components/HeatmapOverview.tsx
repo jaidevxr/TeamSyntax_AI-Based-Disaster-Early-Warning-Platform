@@ -470,31 +470,98 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     ];
   };
 
-  // Fetch weather and pollution data in parallel batches — no overlap
+  // Fetch weather and pollution data ONCE on mount, cache in localStorage for 15 min
   useEffect(() => {
     const abortController = new AbortController();
     const signal = abortController.signal;
 
+    const CACHE_KEY = 'heatmap_weather_cache';
+    const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+    // Try to restore from cache first
+    const tryRestoreCache = (): boolean => {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (!raw) return false;
+        const cached = JSON.parse(raw);
+        if (Date.now() - cached.timestamp > CACHE_TTL) {
+          localStorage.removeItem(CACHE_KEY);
+          return false;
+        }
+        const restored = new Map<string, { temp: number; aqi: number; floodRisk: number; floodFactors: string[] }>();
+        for (const [k, v] of cached.data) {
+          restored.set(k, v);
+        }
+        if (restored.size > 0) {
+          setWeatherData(restored);
+          console.log(`✅ Restored ${restored.size} cities from cache`);
+          return true;
+        }
+      } catch {
+        localStorage.removeItem(CACHE_KEY);
+      }
+      return false;
+    };
+
+    // Save to cache
+    const saveToCache = (dataMap: Map<string, any>) => {
+      try {
+        const serializable = Array.from(dataMap.entries());
+        localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: serializable }));
+      } catch { /* quota exceeded, ignore */ }
+    };
+
+    // Fetch with retry + exponential backoff
+    const fetchWithRetry = async (url: string, opts: RequestInit, retries = 3): Promise<Response> => {
+      for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+          const res = await fetch(url, opts);
+          if (res.ok) return res;
+          if (res.status === 429 && attempt < retries - 1) {
+            const delay = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+            console.warn(`⏳ Rate limited, retrying in ${delay / 1000}s...`);
+            await new Promise(r => setTimeout(r, delay));
+            continue;
+          }
+          return res; // Non-429 error, return as-is
+        } catch (e) {
+          if (attempt === retries - 1) throw e;
+          await new Promise(r => setTimeout(r, 2000));
+        }
+      }
+      throw new Error('Max retries exceeded');
+    };
+
     const loadData = async () => {
+      // Try cache first
+      if (tryRestoreCache()) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      setWeatherData(new Map()); // Clear old data immediately on mode switch
+      setWeatherData(new Map());
 
       const cities = getIndianCities();
       const totalCities = cities.length;
       setLoadingProgress({ current: 0, total: totalCities });
 
       const dataMap = new Map<string, { temp: number; aqi: number; floodRisk: number; floodFactors: string[] }>();
-      const BATCH_SIZE = 8;
+      const BATCH_SIZE = 4; // Smaller batches to avoid WAQI rate limits
       let loadedCount = 0;
 
       try {
-        // Fetch all temperatures in a single bulk API request to prevent 429 Too Many Requests
+        // Fetch all temperatures in a single bulk API request with retry
         const lats = cities.map(c => c.lat).join(',');
         const lngs = cities.map(c => c.lng).join(',');
 
         let meteoData: any[] = [];
         try {
-          const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m&hourly=precipitation&forecast_days=3&timezone=auto`, { signal });
+          const wRes = await fetchWithRetry(
+            `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lngs}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m&hourly=precipitation&forecast_days=3&timezone=auto`,
+            { signal },
+            3
+          );
           if (wRes.ok) {
             const d = await wRes.json();
             meteoData = Array.isArray(d) ? d : [d];
@@ -557,18 +624,20 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
                 // Fetch AQI individually since WAQI doesn't support bulk lat/lng natively
                 let aqi: number | null = null;
-                const aqiRes = await fetch(
-                  `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${import.meta.env.VITE_WAQI_TOKEN}`,
-                  { signal }
-                );
-
-                if (aqiRes.ok) {
-                  const d = await aqiRes.json();
-                  if (d.status === 'ok' && d.data?.aqi) aqi = d.data.aqi;
+                try {
+                  const aqiRes = await fetch(
+                    `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${import.meta.env.VITE_WAQI_TOKEN}`,
+                    { signal }
+                  );
+                  if (aqiRes.ok) {
+                    const d = await aqiRes.json();
+                    if (d.status === 'ok' && d.data?.aqi) aqi = d.data.aqi;
+                  }
+                } catch {
+                  // AQI fetch failed, use fallback
                 }
 
                 if (temp !== null) {
-                  // Fallback to a nominal AQI if the WAQI API rate-limits the request
                   dataMap.set(`${lat},${lng}`, { temp, aqi: aqi || 75, floodRisk, floodFactors });
                 }
               } catch {
@@ -577,29 +646,36 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
             })
           );
 
-          // Give WAQI a brief breather between batches to prevent secondary 429s there
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Longer breather between batches to avoid WAQI 429s
+          await new Promise(resolve => setTimeout(resolve, 500));
 
           loadedCount = Math.min(i + BATCH_SIZE, totalCities);
           setLoadingProgress({ current: loadedCount, total: totalCities });
+
+          // Update data progressively so user sees results appearing
+          if (dataMap.size > 0 && loadedCount % 16 === 0) {
+            setWeatherData(new Map(dataMap));
+          }
         }
       } catch {
         // Ignore abort errors
       }
 
       if (!signal.aborted) {
-        setWeatherData(new Map(dataMap)); // Single update — no overlap
+        setWeatherData(new Map(dataMap));
+        saveToCache(dataMap); // Persist for next reload
         setLoading(false);
         setLoadingProgress({ current: 0, total: 0 });
+        console.log(`✅ Heatmap loaded ${dataMap.size}/${totalCities} cities`);
       }
     };
 
     loadData();
 
     return () => {
-      abortController.abort(); // Cancel if overlay mode changes
+      abortController.abort();
     };
-  }, [overlayMode]);
+  }, []); // Only fetch ONCE on mount — data is same for all overlay modes
 
 
   // Get color based on value with better opacity for heatmap effect
