@@ -5,14 +5,7 @@ import { predictFlood, predictEarthquakeRisk, loadMLModels, type FloodPrediction
 const USGS_EARTHQUAKE_URL = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_day.geojson';
 const NOMINATIM_API_URL = 'https://nominatim.openstreetmap.org/search';
 
-// Overpass mirrors for high availability
-const OVERPASS_MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://lz4.overpass-api.de/api/interpreter',
-  'https://z.overpass-api.de/api/interpreter',
-  'https://overpass.openstreetmap.ru/api/interpreter',
-  'https://overpass.openstreetmap.fr/api/interpreter',
-];
+// Removed client-side Overpass mirrors since all queries are now routed securely through the v1-nearby Edge Function
 
 // Reverse geocode coordinates to city name
 export const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
@@ -538,13 +531,11 @@ export const getFallbackWeatherData = async (location: Location): Promise<Weathe
   }
 };
 
-// Fetch emergency facilities using Overpass API
+// Fetch emergency facilities securely via Supabase Edge Function to avoid CORS and Timeout limits
 export const fetchEmergencyFacilities = async (location: Location, radius: number = 10000): Promise<EmergencyFacility[]> => {
-  // Cache key based on location (rounded to ~1km grid) and radius
   const cacheKey = `facilities_${location.lat.toFixed(2)}_${location.lng.toFixed(2)}_${radius}`;
-  const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+  const CACHE_TTL_MS = 30 * 60 * 1000; 
 
-  // Return cached data if still fresh
   try {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
@@ -555,91 +546,24 @@ export const fetchEmergencyFacilities = async (location: Location, radius: numbe
     }
   } catch { /* ignore parse errors */ }
 
-  // Optimization: Queries for 'nwr' (nodes, ways, and relations) across 25km repeatedly triggers
-  // Overpass 429 Too Many Requests or 504 Gateway Timeout on public mirrors.
-  // Instead, we fetch only 'node' which dramatically reduces computational load and response size,
-  // while still pinpointing the exact location of hospitals, police, and fire stations.
-  const query = `
-    [out:json][timeout:25];
-    (
-      node["amenity"="hospital"](around:${radius},${location.lat},${location.lng});
-      node["amenity"="police"](around:${radius},${location.lat},${location.lng});
-      node["amenity"="fire_station"](around:${radius},${location.lat},${location.lng});
-      node["emergency"="assembly_point"](around:${radius},${location.lat},${location.lng});
-      node["disaster:shelter"="yes"](around:${radius},${location.lat},${location.lng});
-    );
-    out;
-  `;
-
   try {
-    // Race all mirrors in parallel to find the fastest responding one that succeeds
-    const fetchMirror = async (url: string) => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 15000); // 15 second timeout per mirror
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          body: query,
-          signal: controller.signal,
-          headers: { 'Content-Type': 'text/plain' }
-        });
-        clearTimeout(timer);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json();
-      } catch (e) {
-        clearTimeout(timer);
-        throw e;
-      }
-    };
+    const { data, error } = await supabase.functions.invoke('v1-nearby', {
+      body: { lat: location.lat, lng: location.lng, types: 'hospital,police,fire_station' }
+    });
 
-    let data: any;
-    let lastError = null;
+    if (error) throw error;
+    if (!data?.services) throw new Error('Invalid response from nearby function');
 
-    // Try mirrors sequentially to avoid 429 Too Many Requests from racing them all
-    const shuffledMirrors = [...OVERPASS_MIRRORS].sort(() => 0.5 - Math.random());
+    const facilities: EmergencyFacility[] = data.services.map((service: any) => ({
+      id: service.id,
+      name: service.name,
+      type: service.type as 'hospital' | 'police' | 'fire_station' | 'shelter',
+      location: { lat: service.lat, lng: service.lng },
+      distance: service.distance,
+      contact: service.phone,
+      isOpen: true,
+    }));
 
-    for (const mirror of shuffledMirrors) {
-      try {
-        data = await fetchMirror(mirror);
-        break; // Success
-      } catch (err) {
-        lastError = err;
-        console.warn(`Overpass mirror ${mirror} failed, trying next...`);
-      }
-    }
-
-    if (!data) {
-      throw lastError || new Error('All Overpass mirrors failed.');
-    }
-
-    const elements = data.elements || [];
-
-    const facilities: EmergencyFacility[] = elements.map((element: any) => {
-      const lat = element.lat || element.center?.lat;
-      const lon = element.lon || element.center?.lon;
-
-      if (!lat || !lon) return null;
-
-      const distance = calculateDistance(location, { lat: lat, lng: lon });
-
-      let facilityType: 'shelter' | 'hospital' | 'police' | 'fire_station' = 'shelter';
-      if (element.tags?.amenity === 'hospital') facilityType = 'hospital';
-      else if (element.tags?.amenity === 'police') facilityType = 'police';
-      else if (element.tags?.amenity === 'fire_station') facilityType = 'fire_station';
-
-      return {
-        id: element.id.toString(),
-        name: element.tags?.name || `${facilityType.replace('_', ' ')} facility`,
-        type: facilityType,
-        location: { lat: lat, lng: lon },
-        distance: Math.round(distance * 100) / 100,
-        contact: element.tags?.phone,
-        capacity: element.tags?.capacity ? parseInt(element.tags.capacity) : undefined,
-        isOpen: element.tags?.opening_hours !== 'closed',
-      };
-    }).filter(Boolean).sort((a: any, b: any) => (a.distance || 0) - (b.distance || 0));
-
-    // Cache successful response
     try {
       localStorage.setItem(cacheKey, JSON.stringify({ data: facilities, timestamp: Date.now() }));
     } catch { /* ignore storage errors */ }
@@ -647,7 +571,6 @@ export const fetchEmergencyFacilities = async (location: Location, radius: numbe
     return facilities;
   } catch (error) {
     console.error('Error fetching emergency facilities:', error);
-    // Return stale cache if available (better than nothing)
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
