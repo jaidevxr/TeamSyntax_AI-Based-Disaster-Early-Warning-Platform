@@ -108,7 +108,7 @@ const EmergencySOS: React.FC<EmergencySOSProps> = ({ userLocation, nearbyDisaste
       }
 
       // Send alert via edge function
-      const { data, error } = await supabase.functions.invoke('send-emergency-alert', {
+      const { data, error } = await supabase.functions.invoke('v1-send-emergency-alert', {
         body: alertPayload,
       });
 

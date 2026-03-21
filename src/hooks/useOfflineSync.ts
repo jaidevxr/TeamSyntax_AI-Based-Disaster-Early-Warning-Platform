@@ -22,7 +22,7 @@ export const useOfflineSync = () => {
 
       for (const alert of pending) {
         try {
-          const { error } = await supabase.functions.invoke('send-emergency-alert', {
+          const { error } = await supabase.functions.invoke('v1-send-emergency-alert', {
             body: alert.payload,
           });
 

@@ -220,7 +220,7 @@ If asked something completely unrelated to disasters/health/emergencies, politel
       ];
 
       // Route securely through Supabase Edge Functions with built-in rate limiting
-      const { data, error } = await supabase.functions.invoke('copilot-chat', {
+      const { data, error } = await supabase.functions.invoke('v1-copilot-chat', {
         body: { messages: groqMessages }
       });
 

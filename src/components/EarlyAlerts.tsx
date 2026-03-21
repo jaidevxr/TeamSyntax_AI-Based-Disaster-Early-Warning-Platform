@@ -533,7 +533,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
       `;
 
       const { supabase } = await import("@/integrations/supabase/client");
-      const { data: aiData, error } = await supabase.functions.invoke("generate-ai-brief", {
+      const { data: aiData, error } = await supabase.functions.invoke("v1-generate-ai-brief", {
         body: {
           messages: [
             {
