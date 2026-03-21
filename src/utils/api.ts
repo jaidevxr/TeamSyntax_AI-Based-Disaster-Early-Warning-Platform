@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { DisasterEvent, WeatherData, EmergencyFacility, Location } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { predictFlood, predictEarthquakeRisk, loadMLModels, type FloodPredictionInput, type EarthquakePredictionInput } from './mlModels';
@@ -168,8 +167,9 @@ export const fetchDisasterData = async (): Promise<DisasterEvent[]> => {
       orderby: 'time-asc'
     });
 
-    const earthquakeResponse = await axios.get(`${earthquakeUrl}?${earthquakeParams}`);
-    const earthquakes = earthquakeResponse.data.features || [];
+    const earthquakeResponse = await fetch(`${earthquakeUrl}?${earthquakeParams}`);
+    const earthquakeData = await earthquakeResponse.json();
+    const earthquakes = earthquakeData.features || [];
 
     earthquakes.forEach((feature: any) => {
       const coords = feature.geometry.coordinates;
@@ -661,17 +661,17 @@ export const fetchEmergencyFacilities = async (location: Location, radius: numbe
 // Geocoding search
 export const searchLocation = async (query: string): Promise<Location[]> => {
   try {
-    const response = await axios.get(NOMINATIM_API_URL, {
-      params: {
-        q: query,
-        format: 'json',
-        limit: 5,
-        countrycodes: 'in', // Restrict to India
-        addressdetails: 1,
-      },
+    const params = new URLSearchParams({
+      q: query,
+      format: 'json',
+      limit: '5',
+      countrycodes: 'in',
+      addressdetails: '1',
     });
+    const response = await fetch(`${NOMINATIM_API_URL}?${params}`);
+    const data = await response.json();
 
-    return response.data.map((result: any) => ({
+    return data.map((result: any) => ({
       lat: parseFloat(result.lat),
       lng: parseFloat(result.lon),
       name: result.display_name,
