@@ -766,9 +766,9 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-[1001] pointer-events-auto transition-all">
         
         {/* Layer Toggles */}
-        <div className="glass-strong rounded-xl shadow-elevated border border-white/30 backdrop-blur-xl pointer-events-auto transition-all">
+        <div className="glass-strong rounded-xl shadow-elevated border border-border/40 backdrop-blur-xl pointer-events-auto transition-all">
           <Tabs value={overlayMode} onValueChange={(value) => setOverlayMode(value as OverlayMode)}>
-            <TabsList className="bg-card/40 backdrop-blur-xl rounded-lg border border-border/20 p-1 pointer-events-auto h-auto shadow-sm">
+            <TabsList className="bg-card/60 backdrop-blur-xl rounded-lg border border-border/20 p-1 pointer-events-auto h-auto shadow-sm">
               <TabsTrigger
                 value="disaster"
                 className="gap-2 rounded-md transition-all duration-300 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground hover:bg-muted/50 py-2 px-3 sm:px-4"
@@ -809,7 +809,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
         )}
 
       {/* Desktop Map Layer Controls */}
-      <div className="hidden md:block absolute top-4 left-4 glass-strong rounded-xl border border-white/30 p-3 z-[1000] backdrop-blur-xl shadow-elevated">
+      <div className="hidden md:block absolute top-4 left-4 glass-strong rounded-xl border border-border/40 p-3 z-[1000] backdrop-blur-xl shadow-elevated">
         <h3 className="text-xs font-semibold mb-2 text-foreground">Map Style</h3>
         <div className="flex flex-col gap-2">
           <button
@@ -852,7 +852,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       </div>
 
       {/* Desktop Heatmap Controls */}
-      <div className="hidden md:block absolute top-4 right-4 glass-strong rounded-xl border border-white/30 p-4 z-[1000] min-w-[200px] backdrop-blur-xl shadow-elevated">
+      <div className="hidden md:block absolute top-4 right-4 glass-strong rounded-xl border border-border/40 p-4 z-[1000] min-w-[200px] backdrop-blur-xl shadow-elevated">
         <h3 className="text-xs font-semibold mb-3 text-foreground flex items-center gap-2">
           <Settings className="w-4 h-4 text-primary" />
           Heatmap Settings
@@ -894,7 +894,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       </div>
 
       {loading && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 glass-strong p-4 rounded-xl border border-white/30 z-[1000] min-w-[240px] backdrop-blur-xl shadow-xl">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 glass-strong p-4 rounded-xl border border-border/40 z-[1000] min-w-[240px] backdrop-blur-xl shadow-xl">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 justify-center">
               <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
@@ -957,14 +957,14 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
         <div className="md:hidden absolute bottom-4 md:bottom-6 left-4 z-[1000]">
           {!isLegendMobileOpen ? (
             <Button
-              className="rounded-full shadow-2xl h-10 px-4 glass-strong bg-background/90 border border-white/30 backdrop-blur-xl flex items-center justify-center gap-2 animate-in fade-in zoom-in duration-300"
+              className="rounded-full shadow-2xl h-10 px-4 glass-strong bg-card/90 border border-border/40 backdrop-blur-xl flex items-center justify-center gap-2 animate-in fade-in zoom-in duration-300"
               onClick={() => setIsLegendMobileOpen(true)}
             >
               <AlertTriangle className="h-4 w-4 text-destructive" />
               <span className="text-xs font-bold text-foreground">Risk Level</span>
             </Button>
           ) : (
-            <div className="glass-strong p-3 rounded-xl shadow-2xl border border-white/30 w-[240px] max-w-[calc(100vw-32px)] backdrop-blur-xl bg-background/90 z-[1000] animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="glass-strong p-3 rounded-xl shadow-2xl border border-border/40 w-[240px] max-w-[calc(100vw-32px)] backdrop-blur-xl bg-card/95 z-[1000] animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive" />
@@ -1003,7 +1003,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
       {/* Weather/Pollution Legend - Mobile adjusted */}
       {overlayMode !== 'disaster' && (
-        <div className="absolute bottom-20 md:bottom-20 left-4 glass-strong p-2 md:p-3 rounded-xl shadow-elevated border border-white/30 z-[1000] max-w-[160px] md:max-w-[200px] backdrop-blur-xl">
+        <div className="absolute bottom-20 md:bottom-20 left-4 glass-strong p-2 md:p-3 rounded-xl shadow-elevated border border-border/40 z-[1000] max-w-[160px] md:max-w-[200px] backdrop-blur-xl">
           <h3 className="text-[10px] md:text-xs font-semibold mb-1.5 md:mb-2">
             {overlayMode === 'temperature' ? 'Temperature' : 'Air Quality'}
           </h3>
