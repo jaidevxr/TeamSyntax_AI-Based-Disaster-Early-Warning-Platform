@@ -36,12 +36,13 @@
   <script>
     // Blocking script to prevent Flash of Unstyled Content (FOUC)
     const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    // For the premium Nature theme, we default to dark if no preference is saved
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark) || !savedTheme) {
+    // Default to BRIGHT (light) mode as requested by user
+    if (savedTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+      // If no theme is saved, we don't need to do anything as 'light' is the standard HTML default,
+      // but we explicitly remove 'dark' just in case.
     }
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>

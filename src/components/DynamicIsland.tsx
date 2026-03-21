@@ -22,10 +22,10 @@ const DynamicIsland: React.FC<DynamicIslandProps> = ({ userLocation }) => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
       if (saved) return saved === 'dark';
-      // Default to true (dark) for the premium "Nature" theme if no preference is found
-      return true;
+      // Default to false (bright/light) as requested by user
+      return false;
     }
-    return true;
+    return false;
   });
   const [cityName, setCityName] = useState<string>('Detecting...');
   const [isExpanded, setIsExpanded] = useState(false);

@@ -7,7 +7,9 @@ const DashboardNavbar: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('theme');
-    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (saved) return saved === 'dark';
+    // Default to light (false) as requested by user
+    return false;
   });
 
   useEffect(() => {
