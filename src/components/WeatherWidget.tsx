@@ -162,7 +162,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* City Search */}
-      <Card className="bg-sky-50/80 dark:bg-slate-900/50 backdrop-blur-md border-2 border-sky-100 dark:border-slate-800 p-3 sm:p-4 shadow-sm">
+      <Card className="bg-card/50 backdrop-blur-md border-2 border-border p-3 sm:p-4 shadow-sm">
         <div className="space-y-3">
           <div ref={searchContainerRef} className="relative">
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -171,7 +171,7 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
               placeholder="Search city to view weather..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-transparent border-2 border-sky-100 dark:border-slate-800 focus:border-sky-500 text-sky-900 dark:text-sky-100"
+              className="pl-10 bg-background/50 border-2 border-border focus:border-primary text-foreground"
             />
             {isSearching && (
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
@@ -216,11 +216,11 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
       </Card>
 
       {/* Current Weather - Enhanced */}
-      <Card className="bg-sky-50/80 dark:bg-slate-900/50 backdrop-blur-md border-2 border-sky-100 dark:border-slate-800 p-4 sm:p-6 shadow-md shadow-sky-100/20 dark:shadow-none">
+      <Card className="bg-card backdrop-blur-md border-2 border-border p-4 sm:p-6 shadow-md shadow-primary/5">
         <div className="flex items-start justify-between mb-4 sm:mb-6">
           <div className="min-w-0">
-            <h2 className="text-lg sm:text-2xl font-black text-sky-900 dark:text-sky-50 flex items-center gap-2 tracking-tight uppercase">
-              <Cloud className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 text-sky-500" />
+            <h2 className="text-lg sm:text-2xl font-black text-foreground flex items-center gap-2 tracking-tight uppercase">
+              <Cloud className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0 text-primary" />
               <span className="truncate">Climate Intelligence</span>
             </h2>
             <p className="text-muted-foreground flex items-center gap-1 mt-1 text-xs sm:text-sm">
@@ -421,10 +421,10 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
 
       {/* Hourly Forecast - Next 24 Hours */}
       {weather.hourlyForecast && weather.hourlyForecast.length > 0 && (
-        <Card className="bg-sky-50/80 dark:bg-slate-900/50 backdrop-blur-md border-2 border-sky-100 dark:border-slate-800 p-4 sm:p-6 shadow-sm">
+        <Card className="bg-card backdrop-blur-md border-2 border-border p-4 sm:p-6 shadow-sm">
           <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <Clock className="h-5 w-5 text-sky-500" />
-            <h3 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-sky-900 dark:text-sky-100">Near-Term Forecast</h3>
+            <Clock className="h-5 w-5 text-primary" />
+            <h3 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-foreground">Near-Term Forecast</h3>
           </div>
 
           {/* Temperature Chart */}
@@ -554,10 +554,10 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
       )}
 
       {/* 5-Day Forecast - Enhanced */}
-      <Card className="bg-sky-50/80 dark:bg-slate-900/50 backdrop-blur-md border-2 border-sky-100 dark:border-slate-800 p-4 sm:p-6 shadow-sm">
+      <Card className="bg-card backdrop-blur-md border-2 border-border p-4 sm:p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-4 sm:mb-6">
-          <Cloud className="h-5 w-5 text-sky-500" />
-          <h3 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-sky-900 dark:text-sky-100">Weekly Outlook</h3>
+          <Cloud className="h-5 w-5 text-primary" />
+          <h3 className="font-black text-xs sm:text-sm uppercase tracking-[0.2em] text-foreground">Weekly Outlook</h3>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4">
           {weather.forecast.slice(0, 5).map((day, index) => (
