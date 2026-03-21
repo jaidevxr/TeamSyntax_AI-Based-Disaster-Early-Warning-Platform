@@ -181,8 +181,19 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
     rec.continuous = false;
     rec.interimResults = false;
     rec.lang = LANGUAGES.find(l => l.code === language)?.voice || 'en-IN';
-    rec.onresult = (e: any) => { setIsListening(false); handleSend(e.results[0][0].transcript); };
-    rec.onerror = () => setIsListening(false);
+    rec.onresult = (e: any) => { 
+      setIsListening(false); 
+      handleSend(e.results[0][0].transcript); 
+    };
+    rec.onerror = (e: any) => {
+      console.error("Speech recognition error:", e.error);
+      setIsListening(false);
+      if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+        toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings.", variant: "destructive" });
+      } else {
+        toast({ title: "Voice error", description: `Could not listen: ${e.error}`, variant: "destructive" });
+      }
+    };
     rec.onend = () => setIsListening(false);
     return rec;
   };
@@ -190,17 +201,24 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
   const toggleListening = () => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) {
-      toast({ title: "Voice unavailable", description: "Your browser doesn't support voice recognition. Try Chrome.", variant: "destructive" });
+      toast({ title: "Voice unavailable", description: "Your browser doesn't support web speech recognition. Try Chrome or Edge.", variant: "destructive" });
       return;
     }
     if (isListening) {
-      recognitionRef.current?.stop();
+      try { recognitionRef.current?.stop(); } catch(e) {}
       setIsListening(false);
     } else {
       const rec = initRecognition();
       if (!rec) return;
       recognitionRef.current = rec;
-      try { rec.start(); setIsListening(true); } catch {}
+      try { 
+        rec.start(); 
+        setIsListening(true); 
+      } catch (err: any) {
+        console.error("Failed to start speech recognition:", err);
+        toast({ title: "Error starting mic", description: err.message || "Failed to start listening.", variant: "destructive" });
+        setIsListening(false);
+      }
     }
   };
 
