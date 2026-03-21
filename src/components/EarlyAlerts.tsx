@@ -553,8 +553,8 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
       if (error) {
         console.warn("Backend Brief Proxy failed or CORS blocked. Falling back to local direct fetch...", error);
         
-        // Local Fallback for development routed securely through backend proxy
-        const res = await fetch("http://localhost:3001/api/chat", {
+        // Local Fallback for development routed securely through backend proxy or Vercel Serverless
+        const res = await fetch("/api/chat", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

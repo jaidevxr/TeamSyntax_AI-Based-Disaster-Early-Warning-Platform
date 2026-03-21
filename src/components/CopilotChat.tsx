@@ -244,7 +244,7 @@ Rules:
         if (error) throw error;
         aiText = data.message;
       } catch {
-        const response = await fetch('http://localhost:3001/api/chat', {
+        const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: groqMessages }),
