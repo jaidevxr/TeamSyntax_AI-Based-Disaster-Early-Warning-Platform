@@ -313,7 +313,7 @@ const Dashboard: React.FC = () => {
       case 'early-alerts':
         return (
           <div className="h-full overflow-y-auto p-3 pt-16 md:pt-3 sm:p-6 md:pt-6">
-            <div className="mb-6 p-5 glass border border-slate-200/50 dark:border-white/5 rounded-2xl shadow-2xl relative overflow-hidden group">
+            <div className="mb-6 p-5 apple-glass rounded-2xl relative overflow-hidden group">
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
               <div className="flex items-center gap-4 mb-4">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 dark:bg-slate-800/50 flex items-center justify-center border border-primary/20 dark:border-white/5 shadow-inner">
@@ -326,7 +326,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between shadow-none">
                   <div>
                     <p className="text-[10px] text-slate-500 dark:text-muted-foreground font-bold uppercase mb-1">{translations[language].activeSos}</p>
                     <p className="text-xl font-black text-slate-800 dark:text-foreground tabular-nums">
@@ -339,7 +339,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between shadow-none">
                   <div>
                     <p className="text-[10px] text-primary/70 dark:text-muted-foreground font-bold uppercase mb-1">{translations[language].humanConfidence}</p>
                     <p className="text-xl font-black text-primary dark:text-slate-400 tabular-nums">
@@ -374,7 +374,7 @@ const Dashboard: React.FC = () => {
                         { icon: <Globe className="h-3 w-3" />, text: translations[language].sourceInfo.storage },
                         { icon: <TrendingUp className="h-3 w-3" />, text: translations[language].sourceInfo.correlation }
                       ].map((item, idx) => (
-                        <div key={idx} className="flex items-start gap-2 p-2 bg-white dark:bg-slate-950/20 rounded-lg border border-slate-200 dark:border-white/5">
+                          <div key={idx} className="flex items-start gap-2 p-2 bg-white dark:bg-slate-950/20 rounded-lg border border-slate-200 dark:border-white/5 shadow-none">
                           <div className="text-slate-500 mt-0.5">{item.icon}</div>
                           <p className="text-[9px] font-bold text-slate-600 dark:text-slate-400 leading-tight uppercase tracking-tight">
                             {item.text}

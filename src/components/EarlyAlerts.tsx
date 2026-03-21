@@ -905,7 +905,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* Push notification prompt - Skinny & Professional */}
       {isPushSupported() && notifPermission === "default" && !loading && (
-        <div className="flex items-center justify-between gap-3 p-3 apple-glass rounded-xl animate-fade-in group">
+        <div className="flex items-center justify-between gap-3 p-3 apple-glass rounded-xl animate-fade-in group shadow-none border border-primary/10">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <BellRing className="h-4 w-4 text-primary" />
@@ -927,7 +927,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* ═══ LIVE CALCULATION PROGRESS ═══ */}
       {loading && (
-        <div className="p-5 apple-glass rounded-2xl space-y-4 overflow-hidden relative">
+        <div className="p-5 apple-glass rounded-2xl space-y-4 overflow-hidden relative shadow-none border border-primary/5">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -955,7 +955,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
                 <div
                   key={phase.key}
                   className={`flex items-center gap-3 py-2 px-3 rounded-lg border transition-all duration-500 ${isActive
-                    ? "bg-primary/5 dark:bg-primary/10 border-primary/20 shadow-sm scale-[1.02]"
+                    ? "bg-primary/5 dark:bg-primary/10 border-primary/20 shadow-none scale-[1.02]"
                     : isCompleted
                       ? "bg-slate-50 dark:bg-muted/30 border-slate-200 dark:border-transparent opacity-100"
                       : "bg-transparent border-transparent opacity-40"
@@ -987,7 +987,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* ═══ GENERATIVE AI BRIEFING ═══ */}
       {(generatingBrief || aiBrief) && !loading && (
-        <div className="relative p-5 apple-glass rounded-2xl overflow-hidden group">
+        <div className="relative p-5 apple-glass rounded-2xl overflow-hidden group shadow-none border border-emerald-500/10">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent"></div>
 
           <div className="flex items-center gap-3 mb-4">
@@ -1021,7 +1021,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
       {/* No alerts - Clean line */}
       {
         !loading && alerts.length === 0 && (
-          <div className="flex items-center gap-3 p-4 apple-glass rounded-xl shadow-none">
+          <div className="flex items-center gap-3 p-4 apple-glass rounded-xl shadow-none border border-primary/10">
             <CheckCircle2 className="h-4 w-4 text-primary" />
             <span className="text-[11px] font-bold text-primary dark:text-muted-foreground uppercase tracking-[0.1em]">
               Atmospheric Continuity Secured | No Active Threats
