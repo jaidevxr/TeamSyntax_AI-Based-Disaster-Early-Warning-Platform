@@ -149,13 +149,34 @@ export async function fetchEarlyAlertsLocal(
   // 4. GDACS (Wrapped in CORS proxy for browser access)
   const fetchGdacs = async () => {
     const targetUrl = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP";
-    const res = await fetch(
+    
+    const gdacsUrls = [
       `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
-      { signal: AbortSignal.timeout(12000) },
-    );
-    if (!res.ok) return [];
-    const wrapper = await res.json();
-    const data = JSON.parse(wrapper.contents);
+      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+      targetUrl,
+    ];
+
+    let data = null;
+
+    for (const gdacsUrl of gdacsUrls) {
+      try {
+        const res = await fetch(gdacsUrl, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) continue;
+        
+        if (gdacsUrl.includes('allorigins')) {
+          const wrapper = await res.json();
+          data = JSON.parse(wrapper.contents);
+        } else {
+          data = await res.json();
+        }
+        break;
+      } catch (e) {
+        continue;
+      }
+    }
+
+    if (!data) return [];
+    
     const nearby = (data.features || [])
       .filter((f: any) => {
         const [eLng, eLat] = f.geometry?.coordinates || [0, 0];
