@@ -5,8 +5,8 @@ const FROM_NAME = Deno.env.get("ALERTS_FROM_NAME") || "Saarthi Emergency Alert";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  "Access-Control-Allow-Headers": "*",
 };
 
 interface EmergencyAlertRequest {
