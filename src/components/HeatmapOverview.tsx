@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { fetchWeatherDataForMultipleLocations } from '@/utils/api';
-import { Cloud, Droplets, AlertTriangle, Settings, Layers, X } from 'lucide-react';
+import { Cloud, Droplets, AlertTriangle, Settings, Layers, X, ChevronUp, ChevronDown } from 'lucide-react';
 import DynamicIsland from '@/components/DynamicIsland';
 import EmergencySOS from '@/components/EmergencySOS';
 import { Button } from '@/components/ui/button';
@@ -54,12 +54,26 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
   const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
   const [showMapStyleSheet, setShowMapStyleSheet] = useState(false);
   const [showHeatmapSheet, setShowHeatmapSheet] = useState(false);
+  const [isLegendMobileOpen, setIsLegendMobileOpen] = useState(false);
+
+  // Auto-resize leaflet map on window resize for mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (mapInstanceRef.current) {
+        setTimeout(() => mapInstanceRef.current?.invalidateSize(), 50);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    // Initial trigger
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Initialize map
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapRef.current, { zoomControl: false }).setView([20.5937, 78.9629], 5);
+    const map = L.map(mapRef.current, { zoomControl: false }).setView([22.5, 82.0], 5);
     mapInstanceRef.current = map;
 
     const getTileUrl = () => {
@@ -107,6 +121,32 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
     window.addEventListener('centerMap', handleCenterMap);
     return () => window.removeEventListener('centerMap', handleCenterMap);
+  }, []);
+
+  // 🛰️ Saarthi Agent: Map Layer & Mode Synchronization
+  useEffect(() => {
+    const handleSyncLayer = (e: any) => {
+      const layer = e.detail as MapLayer;
+      if (['default', 'satellite', 'terrain', 'streets'].includes(layer)) {
+        console.log(`🗺️ Syncing Map Layer: ${layer}`);
+        setMapLayer(layer);
+      }
+    };
+
+    const handleSyncMode = (e: any) => {
+      const mode = e.detail as OverlayMode;
+      if (['disaster', 'temperature', 'pollution'].includes(mode)) {
+        console.log(`🗺️ Syncing Map Mode: ${mode}`);
+        setOverlayMode(mode);
+      }
+    };
+
+    window.addEventListener('syncMapLayer', handleSyncLayer as EventListener);
+    window.addEventListener('syncMapMode', handleSyncMode as EventListener);
+    return () => {
+      window.removeEventListener('syncMapLayer', handleSyncLayer as EventListener);
+      window.removeEventListener('syncMapMode', handleSyncMode as EventListener);
+    };
   }, []);
 
   // Listen for theme changes
@@ -211,7 +251,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
             if (selectedState === stateName) {
               // Double click to reset
               setSelectedState(null);
-              mapInstanceRef.current?.setView([20.5937, 78.9629], 5);
+              mapInstanceRef.current?.setView([22.5, 82.0], 5);
             } else {
               setSelectedState(stateName);
               const bounds = layer.getBounds();
@@ -518,7 +558,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
                 // Fetch AQI individually since WAQI doesn't support bulk lat/lng natively
                 let aqi: number | null = null;
                 const aqiRes = await fetch(
-                  `https://api.waqi.info/feed/geo:${lat};${lng}/?token=d148749b9e7bc2b5013c0c4cb1b3c9942197fa95`,
+                  `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${import.meta.env.VITE_WAQI_TOKEN}`,
                   { signal }
                 );
 
@@ -721,48 +761,51 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       <DynamicIsland userLocation={userLocation} />
       <div ref={mapRef} className="h-full w-full" />
 
-      {/* Mode Selector & Reset */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-[1001] pointer-events-auto">
-        <div className="glass-strong rounded-xl shadow-lg border border-white/30 backdrop-blur-xl pointer-events-auto">
+      {/* === BOTTOM CENTERED CONTROLS (Mode Toggles + Mobile Legend) === */}
+      <div className="absolute bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-[1001] pointer-events-auto transition-all">
+        
+        {/* Layer Toggles */}
+        <div className="glass-strong rounded-xl shadow-elevated border border-white/30 backdrop-blur-xl pointer-events-auto transition-all">
           <Tabs value={overlayMode} onValueChange={(value) => setOverlayMode(value as OverlayMode)}>
-            <TabsList className="bg-card/40 backdrop-blur-xl rounded-lg border border-border/20 p-1 pointer-events-auto">
+            <TabsList className="bg-card/40 backdrop-blur-xl rounded-lg border border-border/20 p-1 pointer-events-auto h-auto">
               <TabsTrigger
                 value="disaster"
-                className="gap-2 rounded-md transition-all duration-300 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50"
+                className="gap-2 rounded-md transition-all duration-300 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted/50 py-2 px-3 sm:px-4"
               >
                 <AlertTriangle className="h-4 w-4" />
-                <span className="hidden sm:inline">Flood Risk ML</span>
+                <span className="hidden sm:inline text-xs font-semibold">Flood Risk ML</span>
               </TabsTrigger>
               <TabsTrigger
                 value="temperature"
-                className="gap-2 rounded-md transition-all duration-300 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50"
+                className="gap-2 rounded-md transition-all duration-300 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted/50 py-2 px-3 sm:px-4"
               >
                 <Cloud className="h-4 w-4" />
-                <span className="hidden sm:inline">Temp</span>
+                <span className="hidden sm:inline text-xs font-semibold">Temp</span>
               </TabsTrigger>
               <TabsTrigger
                 value="pollution"
-                className="gap-2 rounded-md transition-all duration-300 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg hover:bg-muted/50"
+                className="gap-2 rounded-md transition-all duration-300 bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md hover:bg-muted/50 py-2 px-3 sm:px-4"
               >
                 <Droplets className="h-4 w-4" />
-                <span className="hidden sm:inline">AQI</span>
+                <span className="hidden sm:inline text-xs font-semibold">AQI</span>
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
+      </div>
+
         {selectedState && (
           <button
             onClick={() => {
               setSelectedState(null);
-              mapInstanceRef.current?.setView([20.5937, 78.9629], 5);
+              mapInstanceRef.current?.setView([22.5, 82.0], 5);
             }}
-            className="glass-strong rounded-xl shadow-elevated border border-white/30 px-4 py-2 text-xs font-semibold hover:bg-muted/20 hover:border-border/50 transition-all duration-300 backdrop-blur-xl"
+            className="hidden md:block glass-strong rounded-xl shadow-elevated border border-white/30 px-4 py-2 text-xs font-semibold hover:bg-muted/20 hover:border-border/50 transition-all duration-300 backdrop-blur-xl absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap"
           >
             Show All India
           </button>
         )}
-      </div>
 
       {/* Desktop Map Layer Controls */}
       <div className="hidden md:block absolute top-4 left-4 glass-strong rounded-xl shadow-elevated border border-white/30 p-3 z-[1000] backdrop-blur-xl">
@@ -874,78 +917,85 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       )}
 
 
-      {/* Risk Legend with calculation basis */}
+      {/* === DESKTOP RISK LEGEND === */}
       {overlayMode === 'disaster' && (
-        <div className="absolute bottom-20 md:bottom-6 left-4 md:left-6 glass-strong p-3 md:p-4 rounded-xl shadow-elevated border border-border/30 z-[1000] max-w-[210px] md:max-w-[250px] backdrop-blur-xl">
-          <div className="flex items-center justify-between mb-2 md:mb-3">
-            <h3 className="text-xs md:text-sm font-semibold text-foreground">Risk Level</h3>
-            <Badge variant="outline" className="text-[10px] md:text-xs px-1 md:px-2">{activeFilters.size}/3</Badge>
+        <div className="hidden md:block absolute bottom-6 left-6 glass-strong p-4 rounded-xl shadow-elevated border border-border/30 z-[1000] max-w-[250px] backdrop-blur-xl">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground">Risk Level</h3>
+            <Badge variant="outline" className="text-xs px-2">{activeFilters.size}/3</Badge>
           </div>
 
-          {/* Clickable filter rows */}
           <div className="space-y-1.5 mb-3">
-            <div
-              onClick={() => toggleFilter('high')}
-              className={`flex items-start gap-2 md:gap-3 p-1.5 md:p-2 rounded-lg cursor-pointer transition-all duration-300 border ${activeFilters.has('high')
-                ? 'shadow-md border-destructive/40 bg-destructive/10'
-                : 'opacity-50 hover:opacity-80 hover:bg-muted/30 border-transparent'
-                }`}
-            >
-              <div className="w-3 h-3 md:w-4 md:h-4 rounded-full border-2 shadow-sm mt-0.5 shrink-0" style={{ background: 'hsl(var(--destructive))', borderColor: 'hsl(var(--destructive))' }}></div>
-              <div>
-                <span className="text-xs md:text-sm font-semibold text-foreground block">High ≥ 65%</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">Coastal / cyclone zone, AQI &gt; 200, temp &gt; 40°C</span>
-              </div>
+            <div onClick={() => toggleFilter('high')} className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all duration-300 border ${activeFilters.has('high') ? 'shadow-md border-destructive/40 bg-destructive/10' : 'opacity-50 hover:opacity-80 hover:bg-muted/30 border-transparent'}`}>
+              <div className="w-4 h-4 rounded-full border-2 shadow-sm mt-0.5 shrink-0" style={{ background: 'hsl(var(--destructive))', borderColor: 'hsl(var(--destructive))' }}></div>
+              <div><span className="text-sm font-semibold text-foreground block">High ≥ 65%</span><span className="text-[10px] text-muted-foreground leading-tight">Coastal / cyclone zone, AQI &gt; 200, temp &gt; 40°C</span></div>
             </div>
-
-            <div
-              onClick={() => toggleFilter('medium')}
-              className={`flex items-start gap-2 md:gap-3 p-1.5 md:p-2 rounded-lg cursor-pointer transition-all duration-300 border ${activeFilters.has('medium')
-                ? 'shadow-md border-warning/40 bg-warning/10'
-                : 'opacity-50 hover:opacity-80 hover:bg-muted/30 border-transparent'
-                }`}
-            >
-              <div className="w-3 h-3 md:w-4 md:h-4 rounded-full border-2 shadow-sm mt-0.5 shrink-0" style={{ background: 'hsl(var(--warning))', borderColor: 'hsl(var(--warning))' }}></div>
-              <div>
-                <span className="text-xs md:text-sm font-semibold text-foreground block">Medium 45–64%</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">Flood / seismic zone, AQI 150–200, temp 35–40°C</span>
-              </div>
+            <div onClick={() => toggleFilter('medium')} className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all duration-300 border ${activeFilters.has('medium') ? 'shadow-md border-warning/40 bg-warning/10' : 'opacity-50 hover:opacity-80 hover:bg-muted/30 border-transparent'}`}>
+              <div className="w-4 h-4 rounded-full border-2 shadow-sm mt-0.5 shrink-0" style={{ background: 'hsl(var(--warning))', borderColor: 'hsl(var(--warning))' }}></div>
+              <div><span className="text-sm font-semibold text-foreground block">Medium 45–64%</span><span className="text-[10px] text-muted-foreground leading-tight">Flood / seismic zone, AQI 150–200, temp 35–40°C</span></div>
             </div>
-
-            <div
-              onClick={() => toggleFilter('low')}
-              className={`flex items-start gap-2 md:gap-3 p-1.5 md:p-2 rounded-lg cursor-pointer transition-all duration-300 border ${activeFilters.has('low')
-                ? 'shadow-md border-success/40 bg-success/10'
-                : 'opacity-50 hover:opacity-80 hover:bg-muted/30 border-transparent'
-                }`}
-            >
-              <div className="w-3 h-3 md:w-4 md:h-4 rounded-full border-2 shadow-sm mt-0.5 shrink-0" style={{ background: 'hsl(var(--success))', borderColor: 'hsl(var(--success))' }}></div>
-              <div>
-                <span className="text-xs md:text-sm font-semibold text-foreground block">Low &lt; 45%</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground leading-tight">Inland / stable region, AQI &lt; 150, normal temp</span>
-              </div>
+            <div onClick={() => toggleFilter('low')} className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all duration-300 border ${activeFilters.has('low') ? 'shadow-md border-success/40 bg-success/10' : 'opacity-50 hover:opacity-80 hover:bg-muted/30 border-transparent'}`}>
+              <div className="w-4 h-4 rounded-full border-2 shadow-sm mt-0.5 shrink-0" style={{ background: 'hsl(var(--success))', borderColor: 'hsl(var(--success))' }}></div>
+              <div><span className="text-sm font-semibold text-foreground block">Low &lt; 45%</span><span className="text-[10px] text-muted-foreground leading-tight">Inland / stable region, AQI &lt; 150, normal temp</span></div>
             </div>
           </div>
 
-          {/* Risk calculation basis */}
           <div className="border-t border-border/30 pt-2">
-            <p className="text-[9px] md:text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Risk is calculated from</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Risk is calculated from</p>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px]">🤖</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground">TensorFlow.js Neural Network</span>
+              <div className="flex items-center gap-1.5"><span className="text-[10px]">🤖</span><span className="text-[10px] text-muted-foreground">TensorFlow.js Neural Network</span></div>
+              <div className="flex items-center gap-1.5"><span className="text-[10px]">🌦️</span><span className="text-[10px] text-muted-foreground">10 Live Open-Meteo Features</span></div>
+              <div className="flex items-center gap-1.5"><span className="text-[10px]">📊</span><span className="text-[10px] text-muted-foreground">Rainfall, Humidity, Pressure, Wind</span></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === MOBILE RISK LEGEND (TEXT BUTTON in BOTTOM LEFT CORNER) === */}
+      {overlayMode === 'disaster' && (
+        <div className="md:hidden absolute bottom-4 md:bottom-6 left-4 z-[1000]">
+          {!isLegendMobileOpen ? (
+            <Button
+              className="rounded-full shadow-2xl h-10 px-4 glass-strong bg-background/90 border border-white/30 backdrop-blur-xl flex items-center justify-center gap-2 animate-in fade-in zoom-in duration-300"
+              onClick={() => setIsLegendMobileOpen(true)}
+            >
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <span className="text-xs font-bold text-foreground">Risk Level</span>
+            </Button>
+          ) : (
+            <div className="glass-strong p-3 rounded-xl shadow-2xl border border-white/30 w-[240px] max-w-[calc(100vw-32px)] backdrop-blur-xl bg-background/90 z-[1000] animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="flex items-center justify-between mb-3 border-b border-white/10 pb-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <h3 className="text-sm font-bold text-foreground">Risk Level</h3>
+                  <Badge variant="outline" className="text-[10px] px-1 h-5">{activeFilters.size}/3</Badge>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setIsLegendMobileOpen(false)} className="h-6 w-6 p-0 rounded-full bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20">
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px]">🌦️</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground">10 Live Open-Meteo Features</span>
+
+              <div className="space-y-2 mb-3">
+                <div onClick={() => toggleFilter('high')} className={`flex items-start gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${activeFilters.has('high') ? 'shadow-sm border-destructive/40 bg-destructive/10' : 'opacity-50 border-transparent'}`}>
+                  <div className="w-3 h-3 rounded-full border-2 mt-0.5 shrink-0" style={{ background: 'hsl(var(--destructive))', borderColor: 'hsl(var(--destructive))' }}></div>
+                  <div><span className="text-xs font-semibold block">High ≥ 65%</span><span className="text-[9px] text-muted-foreground leading-tight block mt-0.5">Coastal/cyclone, AQI &gt; 200, temp &gt; 40°C</span></div>
+                </div>
+                <div onClick={() => toggleFilter('medium')} className={`flex items-start gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${activeFilters.has('medium') ? 'shadow-sm border-warning/40 bg-warning/10' : 'opacity-50 border-transparent'}`}>
+                  <div className="w-3 h-3 rounded-full border-2 mt-0.5 shrink-0" style={{ background: 'hsl(var(--warning))', borderColor: 'hsl(var(--warning))' }}></div>
+                  <div><span className="text-xs font-semibold block">Medium 45–64%</span><span className="text-[9px] text-muted-foreground leading-tight block mt-0.5">Flood/seismic, AQI 150–200, temp 35–40°C</span></div>
+                </div>
+                <div onClick={() => toggleFilter('low')} className={`flex items-start gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${activeFilters.has('low') ? 'shadow-sm border-success/40 bg-success/10' : 'opacity-50 border-transparent'}`}>
+                  <div className="w-3 h-3 rounded-full border-2 mt-0.5 shrink-0" style={{ background: 'hsl(var(--success))', borderColor: 'hsl(var(--success))' }}></div>
+                  <div><span className="text-xs font-semibold block">Low &lt; 45%</span><span className="text-[9px] text-muted-foreground leading-tight block mt-0.5">Inland/stable, AQI &lt; 150, normal temp</span></div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px]">📊</span>
-                <span className="text-[9px] md:text-[10px] text-muted-foreground">Rainfall, Humidity, Pressure, Wind</span>
+
+              <div className="border-t border-white/10 pt-2 space-y-1">
+                <p className="text-[10px] text-muted-foreground">🤖 TensorFlow.js Analysis</p>
+                <p className="text-[10px] text-muted-foreground">🌦️ Live Feature Feeds</p>
               </div>
             </div>
-            <p className="text-[9px] text-muted-foreground/70 mt-1.5 leading-tight italic">Hover any region on the map for ML feature extraction</p>
-          </div>
+          )}
         </div>
       )}
 

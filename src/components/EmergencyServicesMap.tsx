@@ -51,6 +51,18 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Auto-resize leaflet map on window resize for mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (mapInstanceRef.current) {
+        setTimeout(() => mapInstanceRef.current?.invalidateSize(), 50);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Debounced search for city suggestions
   useEffect(() => {
     if (debounceTimerRef.current) {
@@ -198,6 +210,9 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
       routingControlRef.current = null;
     }
 
+    // Forcefully close any open Leaflet popups so they don't slide under the search bar during the automatic camera pan
+    mapInstanceRef.current.closePopup();
+
     setSelectedService(service);
     setShowingRoute(true);
 
@@ -337,7 +352,7 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapRef.current).setView([20.5937, 78.9629], 5);
+    const map = L.map(mapRef.current, { zoomControl: false }).setView([20.5937, 78.9629], 5);
     mapInstanceRef.current = map;
 
     const getTileUrl = () => {
@@ -456,28 +471,51 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     // Add service markers
     services.forEach((service, index) => {
 
+      const typeLabel = service.type === 'fire_station' ? 'Fire Station' : service.type.charAt(0).toUpperCase() + service.type.slice(1);
+      const popupHtml = `
+        <div style="min-width: 160px; font-family: system-ui, sans-serif;">
+          <strong style="font-size: 12px; line-height: 1.3; display: block; margin-bottom: 4px;">${escapeHtml(service.name)}</strong>
+          <span style="font-size: 10px; color: #666; line-height: 1.4;">
+            ${escapeHtml(typeLabel)} · ${service.distance.toFixed(2)} km
+            ${service.address ? `<br/>${escapeHtml(service.address)}` : ''}
+          </span>
+          <button
+            data-route-id="${service.id}"
+            style="display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; margin-top: 8px; padding: 6px 10px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.15);"
+          >⬆ Get Directions</button>
+        </div>
+      `;
+
       const marker = L.marker([service.lat, service.lng])
-        .bindPopup(`
-          <div style="min-width: 150px;">
-            <strong>${escapeHtml(service.name)}</strong><br/>
-            <span style="font-size: 12px; color: #666;">
-              Type: ${escapeHtml(service.type)}<br/>
-              Distance: ${service.distance.toFixed(2)} km
-              ${service.address ? `<br/>Address: ${escapeHtml(service.address)}` : ''}
-            </span>
-          </div>
-        `)
+        .bindPopup(popupHtml, { closeButton: true, maxWidth: 200 })
         .addTo(mapInstanceRef.current!);
+
+      // Wire the "Get Directions" button inside popup to showRoute
+      marker.on('popupopen', () => {
+        const btn = document.querySelector(`button[data-route-id="${service.id}"]`) as HTMLElement;
+        if (btn) {
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            marker.closePopup(); // Close popup so it doesn't overlap
+            setSelectedService(service);
+            showRoute(service);
+          };
+        }
+      });
+
       markersRef.current.push(marker);
     });
   }, [services, userLocation]);
 
   return (
-    <div className="flex h-full">
-      {/* Sidebar */}
-      <div className="w-96 bg-card border-r p-4 overflow-y-auto">
-        {/* City Search */}
-        <div className="mb-4 space-y-2">
+    <div className="h-full w-full relative flex flex-col md:flex-row bg-background overflow-hidden">
+      
+      {/* Disable Leaflet popup fade animations globally so they close instantly and don't ghost under UI elements during camera pans */}
+      <style dangerouslySetInnerHTML={{ __html: `.leaflet-fade-anim .leaflet-popup { transition: none !important; }` }} />
+      
+      {/* === DESKTOP SIDEBAR === */}
+      <div className="hidden md:flex w-96 bg-card border-r p-4 flex-col h-full overflow-y-auto z-10 relative">
+        <div className="mb-4 space-y-4">
           <div ref={searchContainerRef} className="relative">
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
@@ -485,63 +523,33 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
               placeholder="Search city for services..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 glass border-border/30 focus:border-primary/50"
+              className="pl-10"
             />
             {isSearching && (
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
                 <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
               </div>
             )}
-
-            {/* Dropdown Results */}
+            {/* Desktop Dropdown */}
             {showDropdown && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+              <div className="absolute top-14 left-0 right-0 bg-card border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
                 {searchResults.map((result, index) => (
-                  <div
-                    key={index}
-                    onClick={() => handleSelectLocation(result)}
-                    className="flex items-center gap-3 p-3 hover:bg-accent cursor-pointer transition-colors border-b border-border last:border-0"
-                  >
-                    <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div key={index} onClick={() => handleSelectLocation(result)} className="flex items-center gap-3 p-3 hover:bg-accent cursor-pointer transition-colors border-b border-border last:border-0">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{result.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {result.lat.toFixed(4)}, {result.lng.toFixed(4)}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{result.lat.toFixed(4)}, {result.lng.toFixed(4)}</p>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-
-            {searchQuery.trim() && !isSearching && searchResults.length === 0 && showDropdown && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 p-3">
-                <p className="text-sm text-muted-foreground text-center">No cities found</p>
-              </div>
-            )}
           </div>
-
-          <Button
-            onClick={getUserLocation}
-            disabled={loading}
-            className="w-full"
-            variant="outline"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Finding...
-              </>
-            ) : (
-              <>
-                <Navigation className="w-4 h-4 mr-2" />
-                Use My Current Location
-              </>
-            )}
+          <Button onClick={getUserLocation} disabled={loading} className="w-full" variant="outline">
+            {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Finding...</> : <><Navigation className="w-4 h-4 mr-2" /> Use My Current Location</>}
           </Button>
         </div>
 
-        {/* Service Type Filters */}
         <div className="mb-4 space-y-2">
           <p className="font-semibold text-sm">Filter by Type:</p>
           {[
@@ -550,75 +558,25 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
             { id: "fire_station", label: "Fire Stations", icon: <Flame className="w-4 h-4" /> },
           ].map(({ id, label, icon }) => (
             <label key={id} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selectedTypes.includes(id)}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelectedTypes([...selectedTypes, id]);
-                  } else {
-                    setSelectedTypes(selectedTypes.filter((t) => t !== id));
-                  }
-                }}
-                className="rounded"
-              />
-              {icon}
-              <span className="text-sm">{label}</span>
+              <input type="checkbox" checked={selectedTypes.includes(id)} onChange={(e) => e.target.checked ? setSelectedTypes([...selectedTypes, id]) : setSelectedTypes(selectedTypes.filter((t) => t !== id))} className="rounded" />
+              {icon} <span className="text-sm">{label}</span>
             </label>
           ))}
         </div>
 
-        {/* Services List */}
-        <div className="space-y-2">
-          <p className="font-semibold text-sm mb-2">
-            Nearby Services ({services.length})
-          </p>
-          {loading && (
-            <div className="text-center py-4">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">Loading services...</p>
-            </div>
-          )}
-          {!loading && services.length === 0 && (
-            <div className="text-center py-4">
-              <p className="text-xs text-muted-foreground">No services found</p>
-            </div>
-          )}
+        <div className="space-y-2 flex-1 overflow-y-auto pb-4">
+          <p className="font-semibold text-xs mb-1.5 sticky top-0 bg-card z-10 py-1">Nearby Services ({services.length})</p>
+          {loading && <div className="text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /><p className="text-[10px] text-muted-foreground">Loading services...</p></div>}
+          {!loading && services.length === 0 && <div className="text-center py-4"><p className="text-[10px] text-muted-foreground">No services found</p></div>}
           {!loading && services.map((service) => (
-            <Card
-              key={service.id}
-              className={`p-3 hover:bg-accent cursor-pointer transition-all ${selectedService?.id === service.id ? 'ring-2 ring-primary' : ''
-                }`}
-              onClick={() => {
-                if (mapInstanceRef.current) {
-                  mapInstanceRef.current.setView([service.lat, service.lng], 15);
-                }
-              }}
-            >
-              <div className="flex items-start gap-2">
-                {getServiceIcon(service.type)}
-                <div className="flex-1">
-                  <p className="font-medium text-sm">{service.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {service.distance.toFixed(2)} km away
-                  </p>
-                  {service.address && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {service.address}
-                    </p>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="mt-2 w-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      showRoute(service);
-                    }}
-                  >
-                    <Navigation className="w-3 h-3 mr-1" />
-                    Get Directions
-                  </Button>
+            <Card key={service.id} className={`p-2.5 hover:bg-accent cursor-pointer transition-all ${selectedService?.id === service.id ? 'ring-2 ring-primary' : ''}`} onClick={() => mapInstanceRef.current?.setView([service.lat, service.lng], 15)}>
+              <div className="flex items-start gap-2.5">
+                <div className="mt-0.5">{getServiceIcon(service.type)}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-xs leading-tight mb-0.5">{service.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{service.distance.toFixed(2)} km away</p>
+                  {service.address && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">{service.address}</p>}
+                  <Button size="sm" variant="outline" className="mt-1.5 w-full h-7 text-[11px]" onClick={(e) => { e.stopPropagation(); showRoute(service); }}><Navigation className="w-3 h-3 mr-1" />Get Directions</Button>
                 </div>
               </div>
             </Card>
@@ -626,64 +584,126 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
         </div>
       </div>
 
-      {/* Map */}
-      <div className="flex-1 relative">
-        <div ref={mapRef} className="h-full w-full" />
-
-        {/* Route Info Panel */}
-        {showingRoute && selectedService && (
-          <div className="absolute top-4 right-4 bg-card border rounded-lg shadow-lg p-4 max-w-sm z-[1000]">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold text-sm">Navigating to</h3>
-                <p className="text-sm text-foreground mt-1">{selectedService.name}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {selectedService.distance.toFixed(2)} km away
-                </p>
+      {/* === MOBILE FLOATING OVERLAYS === */}
+      <div className="md:hidden absolute inset-0 z-[1001] pointer-events-none flex flex-col justify-between">
+        
+        {/* Top Search Bar + Filter Chips Overlay */}
+        <div className="pointer-events-auto p-3 flex flex-col gap-2">
+          <div className="relative">
+            <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Search city..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-11 rounded-xl shadow-lg border-white/20 glass-strong backdrop-blur-xl bg-background/80 text-sm"
+            />
+            {isSearching && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none"><div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" /></div>
+            )}
+            {/* Mobile Dropdown */}
+            {showDropdown && searchResults.length > 0 && (
+              <div className="absolute top-[52px] left-0 right-0 bg-card border border-border rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto">
+                {searchResults.map((result, index) => (
+                  <div key={index} onClick={() => handleSelectLocation(result)} className="flex items-center gap-3 p-3 hover:bg-accent cursor-pointer active:bg-accent border-b border-border/50 last:border-0">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{result.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{result.lat.toFixed(4)}, {result.lng.toFixed(4)}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearRoute}
-                className="h-6 w-6 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+            )}
+          </div>
+
+          {/* Mobile Action Row: Location + Filter Chips */}
+          <div className="flex items-center gap-2">
+            <Button onClick={getUserLocation} disabled={loading} className="h-9 rounded-lg shadow-md glass-strong border-white/20 backdrop-blur-xl bg-background/80 text-xs font-semibold px-3 shrink-0" variant="outline">
+              {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Navigation className="w-3.5 h-3.5" />}
+            </Button>
+            <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
+              {[
+                { id: "hospital", label: "Hospital", icon: <Hospital className="w-3 h-3" /> },
+                { id: "police", label: "Police", icon: <Shield className="w-3 h-3" /> },
+                { id: "fire_station", label: "Fire", icon: <Flame className="w-3 h-3" /> },
+              ].map(({ id, label, icon }) => (
+                <button
+                  key={id}
+                  onClick={() => selectedTypes.includes(id) ? setSelectedTypes(selectedTypes.filter(t => t !== id)) : setSelectedTypes([...selectedTypes, id])}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all shadow-sm border ${
+                    selectedTypes.includes(id)
+                      ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                      : 'glass-strong bg-background/80 text-muted-foreground border-white/20'
+                  }`}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Follow the blue route on the map for turn-by-turn directions
-            </p>
+          </div>
+        </div>
+
+        {/* Mobile Loading State */}
+        {loading && (
+          <div className="pointer-events-auto flex items-center justify-center py-2">
+            <div className="glass-strong bg-background/90 backdrop-blur-xl rounded-full px-4 py-2 shadow-lg border border-white/20 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              <span className="text-xs font-semibold">Finding services...</span>
+            </div>
           </div>
         )}
 
-        {/* Location Status */}
-        {userLocation && (
-          <div className="absolute bottom-4 left-4 bg-card border rounded-lg shadow-lg px-4 py-3 space-y-2 min-w-64 z-[1000]">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-foreground">📍 Detected Location:</p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={getUserLocation}
-                className="h-6 text-xs"
-                disabled={loading}
-              >
-                {loading ? '...' : 'Refresh'}
-              </Button>
+        {/* Bottom: Selected Service Detail (appears when user taps a marker) */}
+        <div className="pointer-events-auto w-full pb-[72px] px-3">
+          {!loading && services.length > 0 && !selectedService && (
+            <div className="glass-strong bg-background/90 backdrop-blur-xl rounded-xl shadow-lg border border-white/20 px-3 py-2.5 flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-foreground">{services.length} services found</span>
+              <span className="text-[9px] text-muted-foreground">Tap a marker for directions</span>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs font-mono text-muted-foreground">
-                Lat: {userLocation[0].toFixed(6)}
-              </p>
-              <p className="text-xs font-mono text-muted-foreground">
-                Lng: {userLocation[1].toFixed(6)}
-              </p>
+          )}
+          {selectedService && !showingRoute && (
+            <Card className="glass-strong backdrop-blur-xl bg-background/90 shadow-2xl border border-white/20 rounded-xl p-2.5 animate-in slide-in-from-bottom-4 duration-300">
+              <div className="flex items-start gap-2">
+                <div className="mt-0.5 bg-primary/10 p-1.5 rounded-full shrink-0">{getServiceIcon(selectedService.type)}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-[11px] leading-tight">{selectedService.name}</p>
+                  <p className="text-[9px] text-primary font-medium mt-0.5">{selectedService.distance.toFixed(2)} km away</p>
+                  <div className="flex gap-1.5 mt-1.5">
+                    <Button size="sm" variant="default" className="flex-1 h-7 rounded-md shadow-sm font-semibold text-[10px]" onClick={(e) => { e.stopPropagation(); showRoute(selectedService); }}>
+                      <Navigation className="w-2.5 h-2.5 mr-1" /> Directions
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 px-2 rounded-md text-[10px]" onClick={() => { setSelectedService(null); clearRoute(); }}>
+                      <X className="w-2.5 h-2.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation Info Panel (Floating Action) - MOVED OUTSIDE MAP FOR Z-INDEX */}
+      {showingRoute && selectedService && (
+        <div className="absolute top-[130px] left-3 right-3 md:top-4 md:left-auto md:right-4 md:w-72 bg-primary text-primary-foreground border border-primary-foreground/20 rounded-xl shadow-2xl p-2.5 md:p-4 z-[1002] backdrop-blur-xl animate-in slide-in-from-top-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-[10px] md:text-sm tracking-wide uppercase opacity-80">Navigating to</h3>
+              <p className="text-xs md:text-sm font-semibold truncate">{selectedService.name}</p>
             </div>
-            <p className="text-[10px] text-muted-foreground">
-              If this is incorrect, check browser location permissions or use a different device
-            </p>
+            <Button variant="ghost" size="sm" onClick={clearRoute} className="h-7 w-7 md:h-8 md:w-8 p-0 rounded-full bg-primary-foreground/10 hover:bg-primary-foreground/20 text-primary-foreground shrink-0">
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-        )}
+          <p className="text-[9px] md:text-xs text-primary-foreground/70 font-medium mt-0.5">Follow the route on the map</p>
+        </div>
+      )}
+
+      {/* === FULL SCREEN MAP === */}
+      <div className="flex-1 h-full w-full absolute md:relative inset-0 z-0">
+        <div ref={mapRef} className="h-full w-full" />
       </div>
     </div>
   );
