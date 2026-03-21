@@ -106,6 +106,7 @@ export interface EmergencyService {
   lng: number;
   distance: number;
   address?: string;
+  contact?: string;
 }
 
 export interface ChatMessage {

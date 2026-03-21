@@ -416,7 +416,7 @@ const Dashboard: React.FC = () => {
       case 'ai-insights':
         return (
           <div className="h-full">
-            <CopilotChat userLocation={userLocation} />
+            <CopilotChat userLocation={userLocation} facilities={facilities} />
           </div>
         );
 

@@ -81,9 +81,10 @@ interface Message {
 
 interface CopilotChatProps {
   userLocation: Location | null;
+  facilities?: any[];
 }
 
-const CopilotChat = ({ userLocation }: CopilotChatProps) => {
+const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -207,6 +208,8 @@ Formatting rules:
 - Use ## for section headings when needed
 - Keep responses concise but actionable — no unnecessary filler
 - Always end with the most relevant emergency number if the situation is critical
+
+CRITICAL ACTION COMMAND: If the user asks for nearby facilities (like hospitals, police stations, fire stations, or emergency shelters), output the token [ACTION:SHOW_FACILITIES:type] at the very end of your response, where "type" is 'hospital', 'police', 'fire_station', or 'shelter'.
 
 If asked something completely unrelated to disasters/health/emergencies, politely say you specialize in disaster response and redirect.`;
 
@@ -561,45 +564,68 @@ If asked something completely unrelated to disasters/health/emergencies, politel
                   <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                 ) : (
                   <div className="space-y-1 text-sm leading-relaxed">
-                    {renderMarkdown(message.content)}
+                    {renderMarkdown(message.content.replace(/\[ACTION:SHOW_FACILITIES:[^\]]+\]/, ''))}
                   </div>
                 )}
               </div>
 
-              {/* Show facility action buttons for hospitals */}
-              {message.role === 'assistant' && message.facilities && message.userLocation && (
-                <div className="mt-3 space-y-2">
-                  {message.facilities
-                    .filter(f => f.type === 'hospital')
-                    .slice(0, 5)
-                    .map((facility, idx) => (
-                      <Card key={idx} className="p-3 bg-card/50 border-border/40">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-sm text-foreground truncate">
-                              {facility.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {(facility.distance / 1000).toFixed(1)} km away
-                            </p>
-                            {facility.contact && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                📞 {facility.contact}
-                              </p>
-                            )}
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={() => handleGetDirections(facility, message.userLocation!)}
-                            className="shrink-0"
-                          >
-                            <Navigation className="w-3 h-3 mr-1" />
-                            Directions
-                          </Button>
+              {/* Action Buttons for Specific Facilities */}
+              {message.role === 'assistant' && (
+                (() => {
+                  const match = message.content.match(/\[ACTION:SHOW_FACILITIES:(hospital|police|fire_station|shelter)\]/);
+                  if (match) {
+                    const actionType = match[1];
+                    const relevantFacilities = [];
+                    const seenNames = new Set();
+                    for (const f of facilities) {
+                      if (f.type === actionType && !seenNames.has(f.name)) {
+                        seenNames.add(f.name);
+                        relevantFacilities.push(f);
+                        if (relevantFacilities.length === 5) break;
+                      }
+                    }
+
+                    if (relevantFacilities.length > 0) {
+                      return (
+                        <div className="mt-3 space-y-2">
+                          {relevantFacilities.map((facility, idx) => (
+                            <Card key={idx} className="p-3 bg-card/50 border-border/40">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-sm text-foreground truncate">
+                                    {facility.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {(facility.distance).toFixed(1)} km away
+                                  </p>
+                                  {facility.contact && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      📞 {facility.contact}
+                                    </p>
+                                  )}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    window.dispatchEvent(new CustomEvent('changeTab', { detail: 'emergency-services' }));
+                                    setTimeout(() => {
+                                      window.dispatchEvent(new CustomEvent('routeToFacility', { detail: facility }));
+                                    }, 400); // Allow tab to mount
+                                  }}
+                                  className="shrink-0"
+                                >
+                                  <Navigation className="w-3 h-3 mr-1" />
+                                  Directions
+                                </Button>
+                              </div>
+                            </Card>
+                          ))}
                         </div>
-                      </Card>
-                    ))}
-                </div>
+                      );
+                    }
+                  }
+                  return null;
+                })()
               )}
             </div>
           </div>

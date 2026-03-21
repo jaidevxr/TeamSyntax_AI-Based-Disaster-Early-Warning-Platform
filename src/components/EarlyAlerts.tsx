@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Location } from "@/types";
+import { escapeHtml } from "@/utils/sanitize";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -589,7 +590,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
     element.style.width = "800px";
 
     const dateStr = new Date().toLocaleString();
-    const locName = userLocation.name || "Unknown Location";
+    const locName = userLocation.name ? escapeHtml(userLocation.name) : "Unknown Location";
 
     element.innerHTML = `
       <div style="border-bottom: 3px solid #0f172a; padding-bottom: 24px; margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -619,7 +620,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
       <div style="margin-bottom: 40px;">
         <h2 style="font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #0f172a; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 20px;">Chief Resilience Executive Brief</h2>
         <div style="line-height: 1.7; font-size: 13px; color: #334155; padding: 0 0 0 0;">
-          ${aiBrief.replace(/\n\n/g, '</div><div style="height: 16px;"></div><div style="line-height: 1.7; font-size: 13px; color: #334155;">').replace(/\n/g, '<br/>')}
+          ${escapeHtml(aiBrief).replace(/\n\n/g, '</div><div style="height: 16px;"></div><div style="line-height: 1.7; font-size: 13px; color: #334155;">').replace(/\n/g, '<br/>')}
         </div>
       </div>
       ` : ""}
@@ -639,12 +640,12 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
               ${alerts.map(a => `
                 <tr>
                   <td style="padding: 20px 10px 20px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; width: 25%;">
-                    <div style="font-weight: 800; color: #0f172a; font-size: 13px; margin-bottom: 6px;">${a.title}</div>
-                    <div style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">${a.severity}</div>
+                    <div style="font-weight: 800; color: #0f172a; font-size: 13px; margin-bottom: 6px;">${escapeHtml(a.title)}</div>
+                    <div style="font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(a.severity)}</div>
                   </td>
                   <td style="padding: 20px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top;">
-                    <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #475569;">${a.description}</p>
-                    <p style="margin: 8px 0 0 0; font-size: 9px; font-family: monospace; color: #94a3b8;">MODEL_ID: ${a.algorithm}</p>
+                    <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #475569;">${escapeHtml(a.description)}</p>
+                    <p style="margin: 8px 0 0 0; font-size: 9px; font-family: monospace; color: #94a3b8;">MODEL_ID: ${escapeHtml(a.algorithm || "N/A")}</p>
                   </td>
                   <td style="padding: 20px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; width: 10%; text-align: right;">
                     <div style="font-size: 14px; font-weight: 800; color: #0f172a;">${(a.confidence * 100).toFixed(0)}%</div>

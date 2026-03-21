@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { EmergencyService, Location } from '@/types';
+import { escapeHtml } from '@/utils/sanitize';
 
 import { createOfflineTileLayer } from '@/utils/offlineTileLayer';
 import { searchLocation, fetchEmergencyFacilities } from '@/utils/api';
@@ -252,6 +253,31 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     setShowingRoute(false);
   };
 
+  // Listen for external routing requests (e.g., from Saarthi AI)
+  useEffect(() => {
+    const handleRouteToFacility = (event: any) => {
+      const facility = event.detail;
+      // Re-map it to ensure it matches the EmergencyService schema used by showRoute
+      const service: EmergencyService = {
+        id: facility.id,
+        name: facility.name,
+        type: facility.type,
+        lat: facility.lat || facility.location?.lat,
+        lng: facility.lng || facility.location?.lng,
+        distance: facility.distance || 0,
+        contact: facility.contact
+      };
+
+      if (userLocation && mapInstanceRef.current) {
+        showRoute(service);
+      }
+    };
+
+    window.addEventListener('routeToFacility', handleRouteToFacility);
+    return () => window.removeEventListener('routeToFacility', handleRouteToFacility);
+  }, [userLocation]); // Re-bind when user location is available
+
+
   const fetchNearbyServices = async (lat: number, lng: number) => {
     setLoading(true);
 
@@ -408,8 +434,20 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     if (userLocation) {
       mapInstanceRef.current.setView(userLocation, 13);
 
-      // Add user location marker
-      const userMarker = L.marker(userLocation)
+      // Add user location marker with distinct pulsing icon
+      const userIcon = L.divIcon({
+        className: 'custom-user-marker',
+        html: `
+          <div class="relative flex items-center justify-center w-8 h-8">
+            <div class="absolute w-full h-full bg-blue-500 rounded-full animate-ping opacity-75"></div>
+            <div class="relative w-4 h-4 bg-blue-600 border-2 border-white rounded-full shadow-lg"></div>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+      });
+
+      const userMarker = L.marker(userLocation, { icon: userIcon })
         .bindPopup('<strong>Your Location</strong>')
         .addTo(mapInstanceRef.current);
       markersRef.current.push(userMarker);
@@ -421,11 +459,11 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
       const marker = L.marker([service.lat, service.lng])
         .bindPopup(`
           <div style="min-width: 150px;">
-            <strong>${service.name}</strong><br/>
+            <strong>${escapeHtml(service.name)}</strong><br/>
             <span style="font-size: 12px; color: #666;">
-              Type: ${service.type}<br/>
+              Type: ${escapeHtml(service.type)}<br/>
               Distance: ${service.distance.toFixed(2)} km
-              ${service.address ? `<br/>Address: ${service.address}` : ''}
+              ${service.address ? `<br/>Address: ${escapeHtml(service.address)}` : ''}
             </span>
           </div>
         `)
@@ -594,7 +632,7 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
 
         {/* Route Info Panel */}
         {showingRoute && selectedService && (
-          <div className="absolute top-4 right-4 bg-card border rounded-lg shadow-lg p-4 max-w-sm">
+          <div className="absolute top-4 right-4 bg-card border rounded-lg shadow-lg p-4 max-w-sm z-[1000]">
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h3 className="font-semibold text-sm">Navigating to</h3>
@@ -620,7 +658,7 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
 
         {/* Location Status */}
         {userLocation && (
-          <div className="absolute bottom-4 left-4 bg-card border rounded-lg shadow-lg px-4 py-3 space-y-2 min-w-64">
+          <div className="absolute bottom-4 left-4 bg-card border rounded-lg shadow-lg px-4 py-3 space-y-2 min-w-64 z-[1000]">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-foreground">📍 Detected Location:</p>
               <Button

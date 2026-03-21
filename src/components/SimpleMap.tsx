@@ -4,6 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { DisasterEvent, EmergencyFacility, Location } from '@/types';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { escapeHtml } from '@/utils/sanitize';
 
 // Fix for default markers
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -167,15 +168,15 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
         .bindPopup(`
           <div class="w-64 p-3 space-y-3">
             <div class="flex items-start justify-between">
-              <h3 class="font-semibold text-sm">${disaster.title}</h3>
+              <h3 class="font-semibold text-sm">${escapeHtml(disaster.title)}</h3>
               <span class="text-xs px-2 py-1 rounded-full ${disaster.severity === 'high' ? 'bg-red-100 text-red-800' :
             disaster.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-          }">${disaster.severity}</span>
+          }">${escapeHtml(disaster.severity)}</span>
             </div>
-            <p class="text-sm text-gray-600">${disaster.description}</p>
-            ${disaster.magnitude ? `<div class="text-xs"><span class="font-medium">Magnitude:</span> ${disaster.magnitude}</div>` : ''}
+            <p class="text-sm text-gray-600">${escapeHtml(disaster.description)}</p>
+            ${disaster.magnitude ? `<div class="text-xs"><span class="font-medium">Magnitude:</span> ${escapeHtml(String(disaster.magnitude))}</div>` : ''}
             <div class="text-xs text-gray-500">${new Date(disaster.time).toLocaleString('en-IN')}</div>
-            ${disaster.url ? `<a href="${disaster.url}" target="_blank" class="text-blue-600 text-xs hover:underline">More Details →</a>` : ''}
+            ${disaster.url ? `<a href="${escapeHtml(disaster.url)}" target="_blank" class="text-blue-600 text-xs hover:underline">More Details →</a>` : ''}
           </div>
         `)
         .on('click', () => onDisasterClick(disaster))
@@ -209,12 +210,12 @@ const SimpleMap: React.FC<SimpleMapProps> = ({
         .bindPopup(`
           <div class="w-56 p-3 space-y-2">
             <div class="flex items-start justify-between">
-              <h3 class="font-semibold text-sm">${facility.name}</h3>
-              <span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">${facility.type.replace('_', ' ')}</span>
+              <h3 class="font-semibold text-sm">${escapeHtml(facility.name)}</h3>
+              <span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">${escapeHtml(facility.type).replace('_', ' ')}</span>
             </div>
-            ${facility.distance ? `<div class="text-xs flex items-center gap-1"><span>📍</span> ${facility.distance}km away</div>` : ''}
-            ${facility.contact ? `<div class="text-xs"><span class="font-medium">Contact:</span> ${facility.contact}</div>` : ''}
-            ${facility.capacity ? `<div class="text-xs"><span class="font-medium">Capacity:</span> ${facility.capacity}</div>` : ''}
+            ${facility.distance ? `<div class="text-xs flex items-center gap-1"><span>📍</span> ${escapeHtml(String(facility.distance))}km away</div>` : ''}
+            ${facility.contact ? `<div class="text-xs"><span class="font-medium">Contact:</span> ${escapeHtml(facility.contact)}</div>` : ''}
+            ${facility.capacity ? `<div class="text-xs"><span class="font-medium">Capacity:</span> ${escapeHtml(String(facility.capacity))}</div>` : ''}
           </div>
         `)
         .on('click', () => onFacilityClick(facility))
