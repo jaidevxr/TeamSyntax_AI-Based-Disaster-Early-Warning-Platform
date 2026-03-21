@@ -746,29 +746,29 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
     switch (severity) {
       case "emergency":
         return {
-          border: "border-red-500/50 hover:border-red-500",
-          bg: "bg-red-500/5 backdrop-blur-md",
-          badge: "bg-red-500 text-white shadow-sm shadow-red-500/40",
+          border: "border-red-500/30 dark:border-red-500/20",
+          bg: "bg-red-500/10 dark:bg-red-500/5 backdrop-blur-xl",
+          badge: "bg-red-500 text-white",
           icon: <ShieldAlert className="h-5 w-5 text-red-500 animate-pulse" />,
-          glow: "shadow-red-500/10 shadow-xl",
+          glow: "border-transparent shadow-none",
           label: t[language].emergency.toUpperCase(),
         };
       case "warning":
         return {
-          border: "border-amber-500/50 hover:border-amber-500",
-          bg: "bg-amber-500/5 backdrop-blur-md",
-          badge: "bg-amber-500 text-black shadow-sm shadow-amber-500/40",
+          border: "border-amber-500/30 dark:border-amber-500/20",
+          bg: "bg-amber-500/10 dark:bg-amber-500/5 backdrop-blur-xl",
+          badge: "bg-amber-500 text-black",
           icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
-          glow: "shadow-amber-500/10 shadow-xl",
+          glow: "border-transparent shadow-none",
           label: t[language].warning.toUpperCase(),
         };
       case "watch":
         return {
-          border: "border-emerald-500/40 hover:border-emerald-500",
-          bg: "bg-emerald-500/5 backdrop-blur-md",
-          badge: "bg-emerald-500 text-white shadow-sm shadow-emerald-500/40",
+          border: "border-emerald-500/30 dark:border-emerald-500/20",
+          bg: "bg-emerald-500/10 dark:bg-emerald-500/5 backdrop-blur-xl",
+          badge: "bg-emerald-500 text-white",
           icon: <Bell className="h-5 w-5 text-emerald-500" />,
-          glow: "shadow-emerald-500/5 shadow-lg",
+          glow: "border-transparent shadow-none",
           label: t[language].watch.toUpperCase(),
         };
       default:
@@ -905,7 +905,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* Push notification prompt - Skinny & Professional */}
       {isPushSupported() && notifPermission === "default" && !loading && (
-        <div className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-slate-900/40 backdrop-blur-md border border-slate-200 dark:border-white/5 shadow-sm rounded-xl animate-fade-in group">
+        <div className="flex items-center justify-between gap-3 p-3 apple-glass rounded-xl animate-fade-in group">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <BellRing className="h-4 w-4 text-primary" />
@@ -927,7 +927,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* ═══ LIVE CALCULATION PROGRESS ═══ */}
       {loading && (
-        <div className="p-5 bg-white dark:bg-slate-950/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl shadow-xl space-y-4 overflow-hidden relative">
+        <div className="p-5 apple-glass rounded-2xl space-y-4 overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -987,7 +987,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* ═══ GENERATIVE AI BRIEFING ═══ */}
       {(generatingBrief || aiBrief) && !loading && (
-        <div className="relative p-5 bg-white dark:bg-slate-900/40 backdrop-blur-md border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm overflow-hidden group">
+        <div className="relative p-5 apple-glass rounded-2xl overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent"></div>
 
           <div className="flex items-center gap-3 mb-4">
@@ -1021,9 +1021,9 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
       {/* No alerts - Clean line */}
       {
         !loading && alerts.length === 0 && (
-          <div className="flex items-center gap-3 p-3 bg-primary/5 dark:bg-slate-900/40 border border-primary/10 dark:border-white/5 rounded-xl opacity-80">
+          <div className="flex items-center gap-3 p-4 apple-glass rounded-xl shadow-none">
             <CheckCircle2 className="h-4 w-4 text-primary" />
-            <span className="text-[11px] font-bold text-primary/70 dark:text-muted-foreground uppercase tracking-widest">
+            <span className="text-[11px] font-bold text-primary dark:text-muted-foreground uppercase tracking-[0.1em]">
               Atmospheric Continuity Secured | No Active Threats
             </span>
           </div>
@@ -1039,7 +1039,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
           return (
             <Card
               key={alert.id}
-              className={`overflow-hidden ${config.border} ${config.bg} ${config.glow} transition-all duration-200`}
+              className={`overflow-hidden shadow-none transition-all duration-200 apple-glass ${config.border} ${config.bg} ${config.glow}`}
             >
               <div
                 className="p-4 cursor-pointer"
