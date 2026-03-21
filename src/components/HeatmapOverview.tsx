@@ -567,8 +567,9 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
                   if (d.status === 'ok' && d.data?.aqi) aqi = d.data.aqi;
                 }
 
-                if (temp !== null && aqi !== null) {
-                  dataMap.set(`${lat},${lng}`, { temp, aqi, floodRisk, floodFactors });
+                if (temp !== null) {
+                  // Fallback to a nominal AQI if the WAQI API rate-limits the request
+                  dataMap.set(`${lat},${lng}`, { temp, aqi: aqi || 75, floodRisk, floodFactors });
                 }
               } catch {
                 // Ignore per-city failures

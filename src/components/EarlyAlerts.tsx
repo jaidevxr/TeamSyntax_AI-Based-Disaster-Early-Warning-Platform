@@ -905,7 +905,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* Push notification prompt - Skinny & Professional */}
       {isPushSupported() && notifPermission === "default" && !loading && (
-        <div className="flex items-center justify-between gap-3 p-3 glass border border-slate-200/50 dark:border-white/5 rounded-xl animate-fade-in group">
+        <div className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-slate-900/40 backdrop-blur-md border border-slate-200 dark:border-white/5 shadow-sm rounded-xl animate-fade-in group">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <BellRing className="h-4 w-4 text-primary" />
@@ -927,7 +927,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* ═══ LIVE CALCULATION PROGRESS ═══ */}
       {loading && (
-        <div className="p-5 glass-strong border border-slate-200/50 dark:border-white/5 rounded-2xl shadow-2xl space-y-4 overflow-hidden relative">
+        <div className="p-5 bg-white dark:bg-slate-950/40 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl shadow-xl space-y-4 overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -955,9 +955,9 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
                 <div
                   key={phase.key}
                   className={`flex items-center gap-3 py-2 px-3 rounded-lg border transition-all duration-500 ${isActive
-                    ? "bg-primary/10 border-primary/30 shadow-lg shadow-primary/5 scale-[1.02]"
+                    ? "bg-primary/5 dark:bg-primary/10 border-primary/20 shadow-sm scale-[1.02]"
                     : isCompleted
-                      ? "bg-muted/30 border-transparent opacity-80"
+                      ? "bg-slate-50 dark:bg-muted/30 border-slate-200 dark:border-transparent opacity-100"
                       : "bg-transparent border-transparent opacity-40"
                     }`}
                 >
@@ -987,7 +987,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* ═══ GENERATIVE AI BRIEFING ═══ */}
       {(generatingBrief || aiBrief) && !loading && (
-        <div className="relative p-5 glass border border-slate-200/50 dark:border-white/5 rounded-2xl shadow-xl overflow-hidden group">
+        <div className="relative p-5 bg-white dark:bg-slate-900/40 backdrop-blur-md border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent"></div>
 
           <div className="flex items-center gap-3 mb-4">

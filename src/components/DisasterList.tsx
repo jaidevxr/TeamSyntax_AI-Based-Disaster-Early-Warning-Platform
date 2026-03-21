@@ -333,7 +333,7 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
               return (
                 <Card
                   key={disaster.id}
-                  className="bg-slate-950/40 border border-white/5 p-4 rounded-2xl hover:bg-slate-900/60 transition-all group"
+                  className="bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-white/5 p-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900/60 transition-all group shadow-sm"
                 >
                   <div className="flex items-start gap-4">
                     <div className="h-10 w-10 rounded-xl bg-primary/10 dark:bg-slate-800/50 flex items-center justify-center border border-primary/20 dark:border-white/5 shadow-inner flex-shrink-0 group-hover:scale-110 transition-transform">
@@ -342,18 +342,18 @@ const DisasterList: React.FC<DisasterListProps> = ({ disasters, onDisasterClick,
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <h4 className="font-black text-[10px] tracking-[0.2em] uppercase text-foreground leading-tight">{disaster.title}</h4>
-                        <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-white/10 bg-slate-900/60 text-slate-400 px-2 py-0.5 rounded-full">
+                        <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest dark:border-white/10 border-slate-300 dark:bg-slate-900/60 bg-slate-200 dark:text-slate-400 text-slate-700 px-2 py-0.5 rounded-full">
                           {disaster.severity}
                         </Badge>
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-relaxed font-medium mb-3">{disaster.description}</p>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-500 leading-relaxed font-medium mb-3">{disaster.description}</p>
                       <div className="flex flex-wrap gap-2">
                         {disaster.probability !== undefined && (
-                          <div className="text-[9px] font-black uppercase tracking-widest bg-slate-900/40 border border-white/5 px-2 py-1 rounded text-slate-400">
+                          <div className="text-[9px] font-black uppercase tracking-widest dark:bg-slate-900/40 bg-slate-100 border dark:border-white/5 border-slate-300 px-2 py-1 rounded dark:text-slate-400 text-slate-700">
                             {(disaster.probability * 100).toFixed(0)}% PROB
                           </div>
                         )}
-                        <div className="text-[9px] font-black uppercase tracking-widest bg-slate-400/10 border border-slate-400/20 px-2 py-1 rounded text-slate-300">
+                        <div className="text-[9px] font-black uppercase tracking-widest dark:bg-slate-400/10 bg-primary/10 border dark:border-slate-400/20 border-primary/20 px-2 py-1 rounded dark:text-slate-300 text-primary">
                           🧠 ML INFERENCE
                         </div>
                       </div>

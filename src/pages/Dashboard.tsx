@@ -326,7 +326,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-50/80 dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200/50 dark:border-white/5 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between shadow-sm">
                   <div>
                     <p className="text-[10px] text-slate-500 dark:text-muted-foreground font-bold uppercase mb-1">{translations[language].activeSos}</p>
                     <p className="text-xl font-black text-slate-800 dark:text-foreground tabular-nums">
@@ -339,7 +339,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="bg-slate-50/80 dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200/50 dark:border-white/5 flex items-center justify-between shadow-sm">
+                <div className="bg-white dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between shadow-sm">
                   <div>
                     <p className="text-[10px] text-primary/70 dark:text-muted-foreground font-bold uppercase mb-1">{translations[language].humanConfidence}</p>
                     <p className="text-xl font-black text-primary dark:text-slate-400 tabular-nums">
@@ -374,7 +374,7 @@ const Dashboard: React.FC = () => {
                         { icon: <Globe className="h-3 w-3" />, text: translations[language].sourceInfo.storage },
                         { icon: <TrendingUp className="h-3 w-3" />, text: translations[language].sourceInfo.correlation }
                       ].map((item, idx) => (
-                        <div key={idx} className="flex items-start gap-2 p-2 bg-slate-100/40 dark:bg-slate-950/20 rounded-lg border border-slate-200/50 dark:border-white/5">
+                        <div key={idx} className="flex items-start gap-2 p-2 bg-white dark:bg-slate-950/20 rounded-lg border border-slate-200 dark:border-white/5">
                           <div className="text-slate-500 mt-0.5">{item.icon}</div>
                           <p className="text-[9px] font-bold text-slate-600 dark:text-slate-400 leading-tight uppercase tracking-tight">
                             {item.text}
