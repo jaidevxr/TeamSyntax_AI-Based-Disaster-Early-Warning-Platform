@@ -85,11 +85,11 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="bg-[#E5F5F9] border-2 border-[#A7D8F0] p-6 animate-pulse">
-            <div className="h-8 bg-muted rounded mb-4"></div>
+          <Card key={i} className="bg-sky-50/50 dark:bg-slate-900/50 border-2 border-sky-100 dark:border-slate-800 p-6 animate-pulse">
+            <div className="h-8 bg-muted/20 rounded mb-4"></div>
             <div className="space-y-2">
-              <div className="h-4 bg-muted rounded w-3/4"></div>
-              <div className="h-4 bg-muted rounded w-1/2"></div>
+              <div className="h-4 bg-muted/20 rounded w-3/4"></div>
+              <div className="h-4 bg-muted/20 rounded w-1/2"></div>
             </div>
           </Card>
         ))}
@@ -99,10 +99,10 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
 
   if (!weather) {
     return (
-      <Card className="bg-[#E5F5F9] border-2 border-[#A7D8F0] p-8 text-center">
+      <Card className="bg-sky-50/50 dark:bg-slate-900/50 border-2 border-sky-100 dark:border-slate-800 p-8 text-center">
         <Cloud className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="font-semibold text-lg mb-2">Weather Data Unavailable</h3>
-        <p className="text-muted-foreground">
+        <h3 className="font-semibold text-lg mb-2 text-sky-900 dark:text-sky-100">Weather Data Unavailable</h3>
+        <p className="text-muted-foreground text-sm">
           Unable to fetch weather information. Please check your location settings.
         </p>
       </Card>
@@ -241,91 +241,91 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
 
         {/* Detailed Weather Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-[#D9E4F5]/50 dark:bg-[#1E415D]/20 border border-[#A7D8F0]/50 dark:border-white/5 transition-all hover:bg-[#D9E4F5] dark:hover:bg-[#1E415D]/40">
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-sky-100/30 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30 transition-all hover:bg-sky-100/50 dark:hover:bg-slate-800/60">
             <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/10">
               <Droplets className="h-5 w-5 text-blue-400" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-[#708090] uppercase tracking-wider">Humidity</p>
-              <p className="font-mono text-lg font-bold text-[#1E415D] dark:text-emerald-100">{weather.humidity}%</p>
+              <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Humidity</p>
+              <p className="font-mono text-lg font-bold text-sky-900 dark:text-sky-50">{weather.humidity}%</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-[#D9E4F5]/50 dark:bg-[#1E415D]/20 border border-[#A7D8F0]/50 dark:border-white/5 transition-all hover:bg-[#D9E4F5] dark:hover:bg-[#1E415D]/40">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/10">
-              <Wind className="h-5 w-5 text-primary" />
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-sky-100/30 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30 transition-all hover:bg-sky-100/50 dark:hover:bg-slate-800/60">
+            <div className="h-10 w-10 rounded-lg bg-sky-500/10 flex items-center justify-center border border-sky-500/10">
+              <Wind className="h-5 w-5 text-sky-500" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-[#708090] uppercase tracking-wider">Wind Velocity</p>
-              <p className="font-mono text-lg font-bold text-[#1E415D] dark:text-emerald-100">{weather.windSpeed} km/h</p>
+              <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Wind Velocity</p>
+              <p className="font-mono text-lg font-bold text-sky-900 dark:text-sky-50">{weather.windSpeed} km/h</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-[#D9E4F5]/50 dark:bg-[#1E415D]/20 border border-[#A7D8F0]/50 dark:border-white/5 transition-all hover:bg-[#D9E4F5] dark:hover:bg-[#1E415D]/40">
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-sky-100/30 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30 transition-all hover:bg-sky-100/50 dark:hover:bg-slate-800/60">
             <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/10">
               <CloudRain className="h-5 w-5 text-emerald-400" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-[#708090] uppercase tracking-wider">Precipitation</p>
-              <p className="font-mono text-lg font-bold text-[#1E415D] dark:text-emerald-100">{weather.rainfall} mm</p>
+              <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Precipitation</p>
+              <p className="font-mono text-lg font-bold text-sky-900 dark:text-sky-50">{weather.rainfall} mm</p>
             </div>
           </div>
 
           {weather.visibility !== undefined && (
-            <div className="flex items-center gap-3 p-4 rounded-xl bg-[#D9E4F5]/50 dark:bg-[#1E415D]/20 border border-[#A7D8F0]/50 dark:border-white/5 transition-all hover:bg-[#D9E4F5] dark:hover:bg-[#1E415D]/40">
+            <div className="flex items-center gap-3 p-4 rounded-xl bg-sky-100/30 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30 transition-all hover:bg-sky-100/50 dark:hover:bg-slate-800/60">
               <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/10">
                 <Eye className="h-5 w-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-[10px] font-black text-[#708090] uppercase tracking-wider">Visibility</p>
-                <p className="font-mono text-lg font-bold text-[#1E415D] dark:text-emerald-100">{weather.visibility} km</p>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Visibility</p>
+                <p className="font-mono text-lg font-bold text-sky-900 dark:text-sky-50">{weather.visibility} km</p>
               </div>
             </div>
           )}
 
           {weather.pressure && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-[#D9E4F5]/50 dark:bg-card/50 border border-[#A7D8F0]/80 dark:border-border/30">
-              <div className="p-2 rounded-lg bg-accent/10">
-                <Gauge className="h-5 w-5 text-accent" />
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-sky-100/30 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30">
+              <div className="p-2 rounded-lg bg-sky-500/10">
+                <Gauge className="h-5 w-5 text-sky-500" />
               </div>
               <div>
-                <p className="text-xs text-[#708090]">Pressure</p>
-                <p className="font-semibold text-lg text-[#1E415D] dark:text-[#1E415D]">{weather.pressure} hPa</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Pressure</p>
+                <p className="font-semibold text-lg text-sky-900 dark:text-sky-50">{weather.pressure} hPa</p>
               </div>
             </div>
           )}
 
           {weather.sunrise && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-[#D9E4F5]/50 dark:bg-card/50 border border-[#A7D8F0]/80 dark:border-border/30">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-sky-100/30 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30">
               <div className="p-2 rounded-lg bg-amber-500/10">
                 <Sunrise className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-xs text-[#708090]">Sunrise</p>
-                <p className="font-semibold text-lg text-[#1E415D] dark:text-[#1E415D]">{formatTime(weather.sunrise)}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Sunrise</p>
+                <p className="font-semibold text-lg text-sky-900 dark:text-sky-50">{formatTime(weather.sunrise)}</p>
               </div>
             </div>
           )}
 
           {weather.sunset && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-[#D9E4F5]/50 dark:bg-card/50 border border-[#A7D8F0]/80 dark:border-border/30">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-sky-100/30 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30">
               <div className="p-2 rounded-lg bg-orange-500/10">
                 <Sunset className="h-5 w-5 text-orange-500" />
               </div>
               <div>
-                <p className="text-xs text-[#708090]">Sunset</p>
-                <p className="font-semibold text-lg text-[#1E415D] dark:text-[#1E415D]">{formatTime(weather.sunset)}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Sunset</p>
+                <p className="font-semibold text-lg text-sky-900 dark:text-sky-50">{formatTime(weather.sunset)}</p>
               </div>
             </div>
           )}
 
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-[#D9E4F5]/50 dark:bg-card/50 border border-[#A7D8F0]/80 dark:border-border/30">
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-sky-100/30 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30">
             <div className="p-2 rounded-lg bg-purple-500/10">
               <Navigation className="h-5 w-5 text-purple-500" />
             </div>
             <div>
-              <p className="text-xs text-[#708090]">Wind Dir.</p>
-              <p className="font-semibold text-lg text-[#1E415D] dark:text-[#1E415D]">{getWindDirection(weather.windDirection)}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Wind Dir.</p>
+              <p className="font-semibold text-lg text-sky-900 dark:text-sky-50">{getWindDirection(weather.windDirection)}</p>
             </div>
           </div>
         </div>
@@ -477,9 +477,9 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
             {weather.hourlyForecast.map((hour, index) => (
               <div
                 key={index}
-                className="text-center p-3 rounded-lg bg-[#D9E4F5]/50 dark:bg-card/50 border border-[#A7D8F0]/80 dark:border-border/30 hover:border-primary/30 transition-all"
+                className="text-center p-3 rounded-lg bg-sky-100/20 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30 hover:border-sky-500/50 transition-all shadow-sm"
               >
-                <p className="text-xs font-semibold text-[#708090] dark:text-muted-foreground mb-2">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
                   {formatTime(hour.time)}
                 </p>
                 <div className="flex justify-center mb-2">
@@ -487,22 +487,19 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
                     <img
                       src={`https://openweathermap.org/img/wn/${hour.icon}@2x.png`}
                       alt={hour.condition}
-                      className="w-12 h-12"
+                      className="w-12 h-12 drop-shadow-sm"
                     />
                   ) : (
                     <span className="text-2xl">☀️</span>
                   )}
                 </div>
-                <p className="font-bold text-lg mb-1 text-[#1E415D] dark:text-[#1E415D]">{hour.temperature}°</p>
-                <p className="text-xs text-[#708090] dark:text-muted-foreground mb-1">{hour.condition}</p>
+                <p className="font-bold text-lg mb-1 text-sky-900 dark:text-sky-50">{hour.temperature}°</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-tight">{hour.condition}</p>
                 {hour.precipitation > 0 && (
-                  <div className="flex items-center justify-center gap-1 mt-2 p-1 rounded bg-teal-500/10">
-                    <Droplets className="h-3 w-3 text-teal-600" />
-                    <p className="text-xs font-medium text-teal-600">{hour.precipitation}%</p>
+                  <div className="flex items-center justify-center gap-1 mt-2 p-1 rounded bg-sky-500/10">
+                    <Droplets className="h-3 w-3 text-sky-500" />
+                    <p className="text-[10px] font-bold text-sky-500">{hour.precipitation}%</p>
                   </div>
-                )}
-                {hour.rain > 0 && (
-                  <p className="text-xs text-teal-600 mt-1">{hour.rain.toFixed(1)}mm</p>
                 )}
               </div>
             ))}
@@ -528,27 +525,26 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
             {weather.alerts.map((alert) => (
               <div
                 key={alert.id}
-                className="p-5 rounded-xl border-2 transition-all hover:shadow-lg"
-                style={{ backgroundColor: '#ffffff80', borderColor: '#A7D8F0' }}
+                className="p-5 rounded-xl border-2 transition-all hover:shadow-lg bg-white/40 dark:bg-red-950/30 border-red-200 dark:border-red-900/40"
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Zap className="h-5 w-5" style={{ color: '#1E415D' }} />
-                    <h4 className="font-semibold text-lg" style={{ color: '#1E415D' }}>{alert.title}</h4>
+                    <Zap className="h-5 w-5 text-red-500" />
+                    <h4 className="font-bold text-base text-red-900 dark:text-red-100 tracking-tight">{alert.title}</h4>
                   </div>
-                  <Badge variant="outline" className="font-bold border-2" style={{ color: '#1E415D', borderColor: '#708090', backgroundColor: '#D9E4F5' }}>
+                  <Badge variant="outline" className="font-black border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 px-2 py-0 text-[10px]">
                     {alert.severity.toUpperCase()}
                   </Badge>
                 </div>
-                <p className="text-sm mb-4 leading-relaxed" style={{ color: '#1E415D' }}>{alert.description}</p>
-                <div className="grid grid-cols-2 gap-3 p-3 rounded-lg" style={{ backgroundColor: '#D9E4F580' }}>
+                <p className="text-sm mb-4 leading-relaxed text-red-900/80 dark:text-red-100/80">{alert.description}</p>
+                <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-red-100/30 dark:bg-red-900/20">
                   <div>
-                    <p className="text-xs mb-1" style={{ color: '#708090' }}>Starts</p>
-                    <p className="text-sm font-medium" style={{ color: '#1E415D' }}>{new Date(alert.start).toLocaleString('en-IN')}</p>
+                    <p className="text-[10px] mb-1 font-bold uppercase text-red-900/40 dark:text-red-100/40">Starts</p>
+                    <p className="text-xs font-bold text-red-900 dark:text-red-100">{new Date(alert.start).toLocaleString('en-IN')}</p>
                   </div>
                   <div>
-                    <p className="text-xs mb-1" style={{ color: '#708090' }}>Ends</p>
-                    <p className="text-sm font-medium" style={{ color: '#1E415D' }}>{new Date(alert.end).toLocaleString('en-IN')}</p>
+                    <p className="text-[10px] mb-1 font-bold uppercase text-red-900/40 dark:text-red-100/40">Ends</p>
+                    <p className="text-xs font-bold text-red-900 dark:text-red-100">{new Date(alert.end).toLocaleString('en-IN')}</p>
                   </div>
                 </div>
               </div>
@@ -567,27 +563,27 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
           {weather.forecast.slice(0, 5).map((day, index) => (
             <div
               key={index}
-              className="text-center p-4 rounded-xl bg-gradient-to-br from-[#E5F5F9] to-[#D9E4F5] border border-[#A7D8F0] hover:border-[#1E415D] transition-all hover:shadow-lg"
+              className="text-center p-4 rounded-xl bg-gradient-to-br from-white/40 to-sky-100/20 dark:from-slate-800 dark:to-slate-900 border border-sky-100 dark:border-slate-700 hover:border-sky-500 dark:hover:border-sky-500/50 transition-all hover:shadow-lg shadow-sm"
             >
-              <p className="text-sm font-semibold text-[#1E415D] mb-2">
+              <p className="text-xs font-bold text-sky-900 dark:text-sky-50 mb-2 uppercase tracking-wide">
                 {new Date(day.date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
               </p>
-              <div className="text-4xl mb-3">
+              <div className="text-4xl mb-3 drop-shadow-md">
                 {day.icon || '☀️'}
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-center gap-2">
-                  <Thermometer className="h-4 w-4 text-destructive" />
-                  <p className="font-bold text-lg">{day.temperature.max}°</p>
+                  <Thermometer className="h-4 w-4 text-red-500" />
+                  <p className="font-black text-xl text-sky-900 dark:text-sky-50">{day.temperature.max}°</p>
                 </div>
                 <div className="flex items-center justify-center gap-2">
-                  <Snowflake className="h-4 w-4 text-teal-500" />
-                  <p className="text-sm text-muted-foreground">{day.temperature.min}°</p>
+                  <Snowflake className="h-4 w-4 text-sky-400" />
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400">{day.temperature.min}°</p>
                 </div>
                 {day.rainfall > 0 && (
-                  <div className="flex items-center justify-center gap-1 mt-2 p-1 rounded bg-teal-500/10">
-                    <Umbrella className="h-3 w-3 text-teal-600" />
-                    <p className="text-xs font-medium text-teal-600">{day.rainfall}mm</p>
+                  <div className="flex items-center justify-center gap-1 mt-2 p-1 rounded bg-sky-500/10">
+                    <Umbrella className="h-3 w-3 text-sky-500" />
+                    <p className="text-[10px] font-bold text-sky-500">{day.rainfall}mm</p>
                   </div>
                 )}
               </div>
