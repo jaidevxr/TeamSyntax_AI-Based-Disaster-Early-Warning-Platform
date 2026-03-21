@@ -533,32 +533,47 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
       `;
 
       const { supabase } = await import("@/integrations/supabase/client");
+      const briefMessages = [
+        {
+          role: "system",
+          content:
+            "You are the Chief Resilience AI for India. You synthesize live machine learning environmental models into a concise, 2-paragraph executive brief for the user. Explicitly mention the AI models (like ANN Landslide, or TF.js Neural Network Flood & Earthquake Risk models) to show sophistication. End with 2 highly actionable bullet points. Keep it brief, professional, and urgent if needed. Do not use filler intro text.",
+        },
+        {
+          role: "user",
+          content: `Please provide an executive brief based on this live telemetry:\n${promptContext}`,
+        },
+      ];
+
+      let aiDataResult;
       const { data: aiData, error } = await supabase.functions.invoke("v1-generate-ai-brief", {
-        body: {
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are the Chief Resilience AI for India. You synthesize live machine learning environmental models into a concise, 2-paragraph executive brief for the user. Explicitly mention the AI models (like ANN Landslide, or TF.js Neural Network Flood & Earthquake Risk models) to show sophistication. End with 2 highly actionable bullet points. Keep it brief, professional, and urgent if needed. Do not use filler intro text.",
-            },
-            {
-              role: "user",
-              content: `Please provide an executive brief based on this live telemetry:\n${promptContext}`,
-            },
-          ]
-        }
+        body: { messages: briefMessages }
       });
 
       if (error) {
-        if (error.context?.status === 429 || error.message?.includes("Rate limit")) {
-          throw new Error("Rate limit exceeded. Please wait a minute before generating another brief.");
-        }
-        throw new Error(error.message || "Failed to generate AI brief");
+        console.warn("Backend Brief Proxy failed or CORS blocked. Falling back to local direct fetch...", error);
+        
+        // Local Fallback for development routed securely through backend proxy
+        const res = await fetch("http://localhost:3001/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: briefMessages,
+          }),
+        });
+
+        if (!res.ok) throw new Error(`Brief Fallback failed: ${res.status}`);
+        const fallbackData = await res.json();
+        aiDataResult = { message: fallbackData.choices[0].message.content };
+      } else {
+        aiDataResult = aiData;
       }
 
-      if (!aiData?.message) throw new Error("Empty AI response");
-
-      setAiBrief(aiData.message);
+      if (!aiDataResult?.message) throw new Error("Empty AI response");
+      setAiBrief(aiDataResult.message);
     } catch (e: any) {
       console.error("Failed to generate AI brief:", e);
       setAiBrief(e.message || "Failed to generate AI executive brief. Please check API keys.");

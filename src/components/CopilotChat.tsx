@@ -1,662 +1,493 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, MapPin, Loader2, Bot, Navigation, Languages, WifiOff, Download } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { offlineTranslator, translateSystemMessage } from '@/utils/offlineTranslation';
-import { searchOfflineKnowledge } from '@/utils/offlineKnowledge';
+import { Send, Loader2, Navigation, Mic, MicOff, MessageSquare, Volume2, Globe, ChevronRight, ArrowRight } from 'lucide-react';
+import { useSaarthiPulse } from '@/hooks/useSaarthiPulse';
 import type { Location } from '@/types';
 
-// ── Markdown renderer ─────────────────────────────────────────────────────────
-// Converts LLM markdown (bold, italic, headings, lists) to styled JSX
+// ── Markdown ──────────────────────────────────────────────────────────────────
 const renderMarkdown = (text: string): React.ReactNode[] => {
   const lines = text.split('\n');
   const nodes: React.ReactNode[] = [];
-
-  const inlineFormat = (line: string, key: string | number): React.ReactNode => {
-    // Process **bold**, *italic*, `code` inline
-    const parts = line.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/);
-    return (
-      <span key={key}>
-        {parts.map((part, i) => {
-          if (part.startsWith('**') && part.endsWith('**'))
-            return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
-          if (part.startsWith('*') && part.endsWith('*'))
-            return <em key={i} className="italic">{part.slice(1, -1)}</em>;
-          if (part.startsWith('`') && part.endsWith('`'))
-            return <code key={i} className="px-1 py-0.5 bg-muted rounded text-xs font-mono">{part.slice(1, -1)}</code>;
-          return part;
-        })}
-      </span>
-    );
+  const inline = (line: string, key: string | number): React.ReactNode => {
+    const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/);
+    return <span key={key}>{parts.map((p, i) => {
+      if (p.startsWith('**') && p.endsWith('**')) return <strong key={i} className="font-semibold">{p.slice(2,-2)}</strong>;
+      if (p.startsWith('*') && p.endsWith('*')) return <em key={i}>{p.slice(1,-1)}</em>;
+      return p;
+    })}</span>;
   };
-
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
-    if (!line.trim()) { nodes.push(<div key={i} className="h-1" />); i++; continue; }
-    // Headings
-    if (line.startsWith('### ')) { nodes.push(<h4 key={i} className="font-bold text-sm mt-3 mb-1 text-foreground">{inlineFormat(line.slice(4), 'h')}</h4>); i++; continue; }
-    if (line.startsWith('## ')) { nodes.push(<h3 key={i} className="font-bold text-base mt-3 mb-1 text-foreground">{inlineFormat(line.slice(3), 'h')}</h3>); i++; continue; }
-    if (line.startsWith('# ')) { nodes.push(<h2 key={i} className="font-bold text-lg mt-3 mb-1 text-foreground">{inlineFormat(line.slice(2), 'h')}</h2>); i++; continue; }
-    // Bullet lists
+    if (!line.trim()) { nodes.push(<div key={i} className="h-1.5" />); i++; continue; }
     if (line.match(/^[•\-*] /) || line.match(/^\d+[.)]/)) {
-      const listItems: React.ReactNode[] = [];
+      const items: React.ReactNode[] = [];
       while (i < lines.length && (lines[i].match(/^[•\-*] /) || lines[i].match(/^\d+[.)]/) || lines[i].trim() === '')) {
-        if (lines[i].trim() !== '') {
-          const content = lines[i].replace(/^[•\-*] |^\d+[.)] /, '');
-          listItems.push(<li key={i} className="ml-3 text-sm leading-relaxed">{inlineFormat(content, i)}</li>);
-        }
+        if (lines[i].trim()) items.push(<li key={i} className="ml-3 mb-1 text-sm leading-relaxed">{inline(lines[i].replace(/^[•\-*] |^\d+[.)] /, ''), i)}</li>);
         i++;
       }
-      nodes.push(<ul key={`ul-${i}`} className="list-disc list-inside space-y-0.5 my-1">{listItems}</ul>);
+      nodes.push(<ul key={`ul-${i}`} className="list-disc list-outside space-y-0.5 my-1.5 pl-2">{items}</ul>);
       continue;
     }
-    // Horizontal rule
-    if (line.match(/^-{3,}$/) || line.match(/^_{3,}$/)) { nodes.push(<hr key={i} className="border-border/30 my-2" />); i++; continue; }
-    // Regular paragraph
-    nodes.push(<p key={i} className="text-sm leading-relaxed">{inlineFormat(line, i)}</p>);
+    nodes.push(<p key={i} className="text-sm leading-relaxed mb-1.5">{inline(line, i)}</p>);
     i++;
   }
   return nodes;
 };
 
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  facilities?: Array<{
-    name: string;
-    type: string;
-    lat: number;
-    lng: number;
-    distance: number;
-    contact?: string;
-  }>;
-  userLocation?: Location;
-}
+// ── Nature SVG Element ─────────────────────────────────────────────────────────
+// A beautiful animated Earth globe with aurora and nature rings
+const NatureElement = ({ state }: { state: 'idle' | 'listening' | 'speaking' | 'thinking' }) => {
+  const colors = {
+    idle:      { orb: ['#86efac','#34d399','#059669','#065f46'], glow: 'rgba(52,211,153,0.25)', ring: '#34d399' },
+    listening: { orb: ['#7dd3fc','#38bdf8','#0ea5e9','#0369a1'], glow: 'rgba(56,189,248,0.35)', ring: '#38bdf8' },
+    speaking:  { orb: ['#c4b5fd','#a78bfa','#7c3aed','#4c1d95'], glow: 'rgba(167,139,250,0.35)', ring: '#a78bfa' },
+    thinking:  { orb: ['#fde68a','#fbbf24','#d97706','#92400e'], glow: 'rgba(251,191,36,0.25)', ring: '#fbbf24' },
+  };
+  const c = colors[state];
+  const isActive = state === 'listening' || state === 'speaking';
 
-interface CopilotChatProps {
-  userLocation: Location | null;
-  facilities?: any[];
-}
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: 220, height: 220 }}>
+      {/* Glow bloom */}
+      <div className="absolute inset-0 rounded-full transition-all duration-1000"
+        style={{ background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)`, transform: isActive ? 'scale(1.3)' : 'scale(1)' }} />
+
+      {/* Outer aurora ring */}
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 220 220">
+        <defs>
+          <linearGradient id="auroraGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={c.ring} stopOpacity="0.8" />
+            <stop offset="50%" stopColor={c.ring} stopOpacity="0.2" />
+            <stop offset="100%" stopColor={c.ring} stopOpacity="0.8" />
+          </linearGradient>
+          {/* Leaf / organic petal shape */}
+          <clipPath id="globeClip">
+            <circle cx="110" cy="110" r="68" />
+          </clipPath>
+        </defs>
+
+        {/* Rotating outer decorative petals (like a flower/earth) */}
+        {[0,45,90,135,180,225,270,315].map((deg, idx) => (
+          <ellipse key={idx}
+            cx="110" cy="110"
+            rx="8" ry="28"
+            fill={c.ring}
+            fillOpacity={0.15 + (idx % 3) * 0.05}
+            transform={`rotate(${deg} 110 110) translate(0 -80)`}
+          />
+        ))}
+
+        {/* Middle ring */}
+        <circle cx="110" cy="110" r="90" fill="none" stroke={c.ring} strokeWidth="1" strokeOpacity="0.3"
+          strokeDasharray={isActive ? "8 4" : "4 8"} >
+          <animateTransform attributeName="transform" type="rotate" from="0 110 110" to="360 110 110"
+            dur={isActive ? "6s" : "12s"} repeatCount="indefinite" />
+        </circle>
+
+        {/* Inner botanical ring */}
+        <circle cx="110" cy="110" r="76" fill="none" stroke={c.ring} strokeWidth="0.5" strokeOpacity="0.5">
+          <animateTransform attributeName="transform" type="rotate" from="360 110 110" to="0 110 110"
+            dur="8s" repeatCount="indefinite" />
+        </circle>
+
+        {/* Earth globe */}
+        <circle cx="110" cy="110" r="68" fill="url(#globeFill)" />
+        <defs>
+          <radialGradient id="globeFill" cx="38%" cy="35%" r="65%">
+            <stop offset="0%" stopColor={c.orb[0]} />
+            <stop offset="35%" stopColor={c.orb[1]} />
+            <stop offset="70%" stopColor={c.orb[2]} />
+            <stop offset="100%" stopColor={c.orb[3]} />
+          </radialGradient>
+        </defs>
+
+        {/* Continent-like organic shapes */}
+        <g clipPath="url(#globeClip)" opacity="0.25">
+          {/* Large landmass */}
+          <ellipse cx="95" cy="90" rx="30" ry="18" fill="white" transform="rotate(-20 95 90)" />
+          <ellipse cx="125" cy="115" rx="20" ry="12" fill="white" transform="rotate(15 125 115)" />
+          <ellipse cx="85" cy="130" rx="15" ry="8" fill="white" transform="rotate(5 85 130)" />
+          <ellipse cx="130" cy="85" rx="10" ry="6" fill="white" transform="rotate(-10 130 85)" />
+        </g>
+
+        {/* Specular highlight */}
+        <ellipse cx="88" cy="86" rx="22" ry="14" fill="white" fillOpacity="0.18" transform="rotate(-30 88 86)" />
+        <ellipse cx="84" cy="83" rx="8" ry="5" fill="white" fillOpacity="0.25" transform="rotate(-30 84 83)" />
+
+        {/* Orbit dots */}
+        {isActive && [0,120,240].map((offset, idx) => (
+          <circle key={idx} cx="110" cy="32" r="3" fill={c.ring} fillOpacity="0.8">
+            <animateTransform attributeName="transform" type="rotate"
+              from={`${offset} 110 110`} to={`${offset + 360} 110 110`}
+              dur={`${2 + idx * 0.5}s`} repeatCount="indefinite" />
+          </circle>
+        ))}
+      </svg>
+    </div>
+  );
+};
+
+interface Message { role: 'user' | 'assistant'; content: string; }
+interface CopilotChatProps { userLocation: Location | null; facilities?: any[]; }
+
+const LANGUAGES = [
+  { code: 'en', label: 'English', voice: 'en-IN' },
+  { code: 'hi', label: 'हिन्दी', voice: 'hi-IN' },
+  { code: 'ta', label: 'தமிழ்', voice: 'ta-IN' },
+  { code: 'te', label: 'తెలుగు', voice: 'te-IN' },
+  { code: 'mr', label: 'मराठी', voice: 'mr-IN' },
+  { code: 'bn', label: 'বাংলা', voice: 'bn-IN' },
+];
 
 const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [locationName, setLocationName] = useState<string>('');
+  const [locationName, setLocationName] = useState('');
+  const [mode, setMode] = useState<'text' | 'voice'>('text');
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [language, setLanguage] = useState('en');
-  const [online, setOnline] = useState(true);
-  const [modelLoading, setModelLoading] = useState(false);
-  const [modelProgress, setModelProgress] = useState(0);
-  const [modelReady, setModelReady] = useState(false);
+  const [showLangPicker, setShowLangPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
+  const { pulse, clearInterjection } = useSaarthiPulse(userLocation);
+
+  const voiceState = loading ? 'thinking' : isListening ? 'listening' : isSpeaking ? 'speaking' : 'idle';
 
   useEffect(() => {
-    // Fetch location name when location changes
+    if (pulse.isInterjectionNeeded && pulse.message) {
+      setMessages(prev => [...prev, { role: 'assistant', content: pulse.message }]);
+      clearInterjection();
+    }
+  }, [pulse.isInterjectionNeeded, pulse.message, clearInterjection]);
+
+  useEffect(() => {
     if (userLocation) {
       fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${userLocation.lat}&longitude=${userLocation.lng}&localityLanguage=en`)
-        .then(res => res.json())
-        .then(data => {
-          const name = data.city || data.locality || data.principalSubdivision || 'Unknown location';
-          setLocationName(name);
-        })
-        .catch(err => console.error('Error fetching location name:', err));
+        .then(r => r.json()).then(d => setLocationName(d.city || d.locality || '')).catch(() => {});
     }
   }, [userLocation]);
 
-  useEffect(() => {
-    // Probe actual connectivity — navigator.onLine is unreliable in dev/VPN environments
-    const probeConnectivity = async () => {
-      try {
-        await fetch(
-          'https://api.open-meteo.com/v1/forecast?latitude=20&longitude=78&current=temperature_2m',
-          { method: 'HEAD', signal: AbortSignal.timeout(4000) }
-        );
-        setOnline(true);
-      } catch {
-        setOnline(false);
-      }
-    };
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-    probeConnectivity();
-    const handleOnline = () => setOnline(true);
-    const handleOffline = () => probeConnectivity();
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+  const initRecognition = () => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) return null;
+    const rec = new SpeechRec();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = LANGUAGES.find(l => l.code === language)?.voice || 'en-IN';
+    rec.onresult = (e: any) => { setIsListening(false); handleSend(e.results[0][0].transcript); };
+    rec.onerror = () => setIsListening(false);
+    rec.onend = () => setIsListening(false);
+    return rec;
+  };
 
-  const initializeOfflineModel = async () => {
-    if (modelReady || modelLoading) return;
-
-    setModelLoading(true);
-    setModelProgress(0);
-
-    try {
-      await offlineTranslator.initialize((progress) => {
-        setModelProgress(progress);
-      });
-      setModelReady(true);
-      toast({
-        title: "Offline Mode Ready",
-        description: "Translation model downloaded. You can now use Saarthi offline.",
-      });
-    } catch (error) {
-      console.error('Failed to initialize offline model:', error);
-      toast({
-        title: "Download Failed",
-        description: "Could not download offline translation model. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setModelLoading(false);
+  const toggleListening = () => {
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRec) {
+      toast({ title: "Voice unavailable", description: "Your browser doesn't support voice recognition. Try Chrome.", variant: "destructive" });
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      const rec = initRecognition();
+      if (!rec) return;
+      recognitionRef.current = rec;
+      try { rec.start(); setIsListening(true); } catch {}
     }
   };
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const speakText = (text: string) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const clean = text.replace(/\[ACTION:[^\]]+\]/g, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
+    const utt = new SpeechSynthesisUtterance(clean);
+    utt.lang = LANGUAGES.find(l => l.code === language)?.voice || 'en-IN';
+    utt.rate = 0.95;
+    utt.onstart = () => setIsSpeaking(true);
+    utt.onend = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utt);
+  };
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
-
-    const userMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
+  const handleSend = async (overrideInput?: string) => {
+    const activeInput = overrideInput || input;
+    if (!activeInput.trim() || loading) return;
+    const userMsg: Message = { role: 'user', content: activeInput };
+    setMessages(prev => [...prev, userMsg]);
+    if (!overrideInput) setInput('');
     setLoading(true);
 
+    const langLabel = LANGUAGES.find(l => l.code === language)?.label || 'English';
+    const systemPrompt = `You are Saarthi, a disaster management AI for India.
+Rules:
+- Respond ONLY in ${langLabel}.
+- Be concise. 3 sentences max unless listing steps.
+- No greetings, no filler.
+- When asked about hospitals or facilities, include [ACTION:SHOW_FACILITIES:hospital].
+- Use **bold** for critical numbers (102, 112) only.
+- User location: ${locationName || 'India'}.`;
     try {
-      const allMessages = [...messages, userMessage];
-
-      // Build an enriched system prompt with real context
-      const now = new Date();
-      const dateStr = now.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-      const langNames: Record<string, string> = {
-        en: 'English', hi: 'Hindi', ta: 'Tamil', bn: 'Bengali', te: 'Telugu',
-        mr: 'Marathi', gu: 'Gujarati', kn: 'Kannada', ml: 'Malayalam', pa: 'Punjabi',
-      };
-
-      const systemPrompt = `You are Saarthi, an expert AI disaster-response and medical assistant for India, built by Team Syntax.
-Current date/time in India: ${dateStr}, ${timeStr} IST.
-${userLocation ? `User is located at: ${locationName || `${userLocation.lat.toFixed(4)}°N, ${userLocation.lng.toFixed(4)}°E`}` : 'User location: not yet provided.'}
-Respond ONLY in ${langNames[language] || 'English'}.
-
-You specialize in:
-- Disaster preparedness & response (flood, earthquake, cyclone, fire, landslide, heatwave, cold wave, AQI)
-- NDMA safety protocols and Indian government emergency procedures
-- First aid & medical emergency guidance
-- Locating nearby hospitals, police, shelters, fire stations
-- India emergency numbers: 112 (National), 100 (Police), 101 (Fire), 102 (Ambulance), 108 (NDRF), 1099 (Coast Guard)
-
-Formatting rules:
-- Use **bold** for key terms and emergency numbers
-- Use bullet lists (- item) for steps or lists
-- Use ## for section headings when needed
-- Keep responses concise but actionable — no unnecessary filler
-- Always end with the most relevant emergency number if the situation is critical
-
-CRITICAL ACTION COMMAND: If the user asks for nearby facilities (like hospitals, police stations, fire stations, or emergency shelters), output the token [ACTION:SHOW_FACILITIES:type] at the very end of your response, where "type" is 'hospital', 'police', 'fire_station', or 'shelter'.
-
-If asked something completely unrelated to disasters/health/emergencies, politely say you specialize in disaster response and redirect.`;
-
-      // Trim history to last 16 messages to avoid token limit issues
-      const trimmedMessages = allMessages.slice(-16);
-
       const groqMessages = [
         { role: 'system', content: systemPrompt },
-        ...trimmedMessages.map(m => ({ role: m.role, content: m.content })),
+        ...[...messages, userMsg].slice(-10).map(m => ({ role: m.role, content: m.content })),
       ];
-
-      // Route securely through Supabase Edge Functions with built-in rate limiting
-      const { data, error } = await supabase.functions.invoke('v1-copilot-chat', {
-        body: { messages: groqMessages }
-      });
-
-      if (error) {
-        if (error.context?.status === 429 || error.message?.includes('Rate limit')) {
-          throw new Error('Rate limit exceeded. Please wait a minute.');
-        }
-        throw new Error(error.message || 'Failed to communicate with AI server');
-      }
-
-      if (!data?.message) {
-        throw new Error('No response from AI server');
-      }
-
-      const aiText = data.message;
-
-
-      // Parse the response to extract facility data if present
-      let facilities;
-      let parsedUserLocation;
-
-      // Try to extract JSON data from the response
+      let aiText = '';
       try {
-        const jsonMatch = aiText.match(/\{[\s\S]*"facilities"[\s\S]*\}/);
-        if (jsonMatch) {
-          const extracted = JSON.parse(jsonMatch[0]);
-          facilities = extracted.facilities;
-          parsedUserLocation = extracted.userLocation;
-        }
-      } catch (e) {
-        // If parsing fails, it's just regular text
-      }
-
-      const assistantMessage: Message = {
-        role: 'assistant',
-        content: aiText,
-        facilities,
-        userLocation: parsedUserLocation,
-      };
-      setMessages(prev => [...prev, assistantMessage]);
-
-    } catch (error) {
-      console.error('Error:', error);
-
-      // If offline or network error, use offline knowledge base
-      // Fall back to offline knowledge if: no internet, fetch failed, or GROQ_API_KEY not set in Supabase
-      const isNetworkError = error instanceof Error && (
-        error.message === 'OFFLINE' ||
-        error.message.includes('Failed to fetch') ||
-        error.message.includes('NetworkError') ||
-        error.message.includes('Load failed') ||
-        error.message.includes('Network request failed')
-      );
-      if (isNetworkError) {
-        try {
-          // Try to find answer in offline knowledge base
-          const offlineAnswer = searchOfflineKnowledge(input);
-
-          if (offlineAnswer) {
-            let response = `🔵 **Offline Knowledge Base**\n\n${offlineAnswer.answer}`;
-
-            // Add related topics
-            if (offlineAnswer.relatedTopics && offlineAnswer.relatedTopics.length > 0) {
-              response += `\n\n📚 **Related topics:** ${offlineAnswer.relatedTopics.join(', ')}`;
-            }
-
-            // Translate if needed
-            if (language !== 'en') {
-              if (!offlineTranslator.isReady()) {
-                await offlineTranslator.initialize((progress) => {
-                  setModelProgress(progress);
-                });
-              }
-              response = await translateSystemMessage(response, language);
-            }
-
-            const assistantMessage: Message = {
-              role: 'assistant',
-              content: response,
-            };
-            setMessages(prev => [...prev, assistantMessage]);
-
-            toast({
-              title: "Offline Mode",
-              description: "Answer from offline knowledge base.",
-              variant: "default",
-            });
-          } else {
-            // No offline answer available
-            let offlineResponse = "⚠️ I'm currently in offline mode and don't have specific information about that query in my offline database.\n\nI can help with:\n• Medical emergencies (CPR, bleeding, burns, etc.)\n• Disaster safety (earthquake, flood, fire, etc.)\n• Emergency numbers and procedures\n\nPlease connect to internet for detailed, location-specific assistance or ask about one of the topics above.";
-
-            if (language !== 'en') {
-              if (!offlineTranslator.isReady()) {
-                await offlineTranslator.initialize((progress) => {
-                  setModelProgress(progress);
-                });
-              }
-              offlineResponse = await translateSystemMessage(offlineResponse, language);
-            }
-
-            const assistantMessage: Message = {
-              role: 'assistant',
-              content: offlineResponse,
-            };
-            setMessages(prev => [...prev, assistantMessage]);
-
-            toast({
-              title: "Offline Mode",
-              description: "Limited information available offline.",
-              variant: "default",
-            });
-          }
-        } catch (offlineError) {
-          console.error('Offline knowledge error:', offlineError);
-          setMessages(prev => prev.slice(0, -1));
-          toast({
-            title: "Error",
-            description: "Cannot process request offline. Please connect to internet.",
-            variant: "destructive",
-          });
-        }
-      } else {
-        // Remove the user message on error
-        setMessages(prev => prev.slice(0, -1));
-
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to get response. Please try again.",
-          variant: "destructive",
+        const { data, error } = await supabase.functions.invoke('v1-copilot-chat', { body: { messages: groqMessages } });
+        if (error) throw error;
+        aiText = data.message;
+      } catch {
+        const response = await fetch('http://localhost:3001/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: groqMessages }),
         });
+        aiText = (await response.json()).choices[0].message.content;
       }
-    } finally {
-      setLoading(false);
-    }
+      setMessages(prev => [...prev, { role: 'assistant', content: aiText }]);
+      if (mode === 'voice') speakText(aiText);
+    } catch {
+      toast({ title: 'Connection error', description: 'Could not reach Saarthi.', variant: 'destructive' });
+    } finally { setLoading(false); }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const handleGetDirections = (facility: any, userLoc: Location) => {
-    // Navigate to emergency page with route info
-    navigate('/emergency', {
-      state: {
-        destination: {
-          lat: facility.lat,
-          lng: facility.lng,
-          name: facility.name
-        },
-        origin: userLoc
-      }
-    });
-  };
-
-  const quickTopics = [
-    { label: '🚨 Emergency Numbers', query: 'What are the emergency helpline numbers in India?' },
-    { label: '❤️ CPR Guide', query: 'How do I perform CPR on an adult?' },
-    { label: '🌊 Flood Safety', query: 'What should I do during a flood?' },
-    { label: '⚡ Earthquake Safety', query: 'What to do during an earthquake?' },
-    { label: '🌀 Cyclone Safety', query: 'How do I stay safe during a cyclone?' },
-    { label: '🎒 Emergency Kit', query: 'What should be in a 72-hour emergency survival kit?' },
-    { label: '🔥 Fire Escape', query: 'What to do if there is a fire at home?' },
-    { label: '🏥 First Aid', query: 'Basic first aid for bleeding wounds?' },
+  const currentLang = LANGUAGES.find(l => l.code === language) || LANGUAGES[0];
+  const quickPrompts = [
+    'Nearest hospital',
+    'Flood safety steps',
+    'Emergency contacts',
+    'Earthquake protocol',
+    'Cyclone warning signs',
+    'Evacuation routes',
+    'First aid tips',
+    'Fire emergency steps',
   ];
 
-  // Auto-send on quick topic click
-  const handleQuickTopic = useCallback((query: string) => {
-    setInput(query);
-    // Small delay so the input is set before handleSend reads it
-    setTimeout(() => {
-      const sendBtn = document.getElementById('copilot-send-btn');
-      sendBtn?.click();
-    }, 50);
-  }, []);
+  const bgStyle = { background: 'linear-gradient(160deg, #dff0fb 0%, #e8f4fd 50%, #f0f8ff 100%)' };
 
-  return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 md:p-6 border-b border-border/40 bg-card/50 backdrop-blur">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg md:text-xl font-bold text-foreground">Saarthi</h2>
-              <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">Disaster & Medical Response Assistant</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-            {!online && (
-              <div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm text-muted-foreground bg-muted/30 px-2 md:px-3 py-1.5 md:py-2 rounded-lg">
-                <WifiOff className="w-3 h-3 md:w-4 md:h-4 text-yellow-500" />
-                <span className="font-medium">Limited connectivity — offline knowledge active</span>
-              </div>
-            )}
-            {!modelReady && !modelLoading && language !== 'en' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={initializeOfflineModel}
-                className="gap-1.5 text-xs md:text-sm h-8 md:h-9"
-              >
-                <Download className="w-3 h-3 md:w-4 md:h-4" />
-                <span className="hidden sm:inline">Enable Offline Mode</span>
-                <span className="sm:hidden">Offline</span>
-              </Button>
-            )}
-            <Select value={language} onValueChange={setLanguage}>
-              <SelectTrigger className="w-[120px] md:w-[160px] bg-background border-border/40 h-8 md:h-9 text-xs md:text-sm">
-                <Languages className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2 text-primary" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="hi">हिन्दी</SelectItem>
-                <SelectItem value="ta">தமிழ்</SelectItem>
-                <SelectItem value="bn">বাংলা</SelectItem>
-                <SelectItem value="te">తెలుగు</SelectItem>
-                <SelectItem value="mr">मराठी</SelectItem>
-                <SelectItem value="gu">ગુજરાતી</SelectItem>
-                <SelectItem value="kn">ಕನ್ನಡ</SelectItem>
-                <SelectItem value="ml">മലയാളം</SelectItem>
-                <SelectItem value="pa">ਪੰਜਾਬੀ</SelectItem>
-              </SelectContent>
-            </Select>
-            {userLocation && (
-              <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
-                <MapPin className="w-4 h-4 text-primary" />
-                <span className="font-medium truncate max-w-[150px]">
-                  {locationName || `${userLocation.lat.toFixed(2)}, ${userLocation.lng.toFixed(2)}`}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-        {modelLoading && (
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Downloading offline translation model...</span>
-              <span className="text-primary font-medium">{modelProgress}%</span>
-            </div>
-            <Progress value={modelProgress} className="h-2" />
+  // ── Shared Header ─────────────────────────────────────────────────────────────
+  const Header = () => (
+    <div className="flex items-center justify-between px-4 pt-4 pb-3 flex-shrink-0">
+      {/* Mode toggle pill */}
+      <div className="flex items-center bg-white/50 backdrop-blur-sm border border-white/80 rounded-full p-1 gap-1">
+        <button
+          onClick={() => { setMode('text'); setIsListening(false); recognitionRef.current?.stop(); window.speechSynthesis?.cancel(); setIsSpeaking(false); }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${mode === 'text' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          Text
+        </button>
+        <button
+          onClick={() => setMode('voice')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${mode === 'voice' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+        >
+          <Mic className="w-3.5 h-3.5" />
+          Voice
+        </button>
+      </div>
+
+      {/* Language picker */}
+      <div className="relative">
+        <button
+          onClick={() => setShowLangPicker(v => !v)}
+          className="flex items-center gap-1.5 bg-white/60 backdrop-blur-sm border border-white/80 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+        >
+          <Globe className="w-3.5 h-3.5" />
+          {currentLang.label}
+        </button>
+        {showLangPicker && (
+          <div className="absolute top-9 right-0 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-2xl shadow-2xl py-2 z-50 min-w-[130px]">
+            {LANGUAGES.map(l => (
+              <button key={l.code} onClick={() => { setLanguage(l.code); setShowLangPicker(false); }}
+                className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors ${language === l.code ? 'text-sky-500 bg-sky-50' : 'text-slate-600 hover:bg-slate-50'}`}>
+                {l.label}
+              </button>
+            ))}
           </div>
         )}
       </div>
+    </div>
+  );
+
+  // ── Voice Mode ────────────────────────────────────────────────────────────────
+  if (mode === 'voice') {
+    return (
+      <div className="h-full flex flex-col" style={bgStyle}>
+        <Header />
+
+        {/* Nature visual + status */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6">
+          <NatureElement state={voiceState} />
+          <div className="text-center space-y-1 mt-2">
+            <p className="text-base font-semibold text-slate-600">
+              {isListening ? '🎙 Listening...' : isSpeaking ? '🔊 Speaking...' : loading ? '💭 Thinking...' : 'Tap mic to speak'}
+            </p>
+            {messages.length > 0 && !isListening && !isSpeaking && (
+              <p className="text-xs text-slate-400 max-w-[240px] text-center leading-relaxed line-clamp-2">
+                {messages[messages.length - 1].content.replace(/\[ACTION:[^\]]+\]/g, '').slice(0, 90)}...
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Controls */}
+        <div className="pb-8 px-6">
+          <div className="flex items-center justify-center gap-8">
+            {/* Stop speaking */}
+            <button
+              onClick={() => { window.speechSynthesis?.cancel(); setIsSpeaking(false); }}
+              className="w-12 h-12 rounded-full bg-white/60 backdrop-blur-sm border border-white/80 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors shadow-sm"
+            >
+              <Volume2 className="w-5 h-5" />
+            </button>
+
+            {/* Mic button */}
+            <button
+              onClick={toggleListening}
+              disabled={loading}
+              className={`w-18 h-18 w-[72px] h-[72px] rounded-full flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95 ${
+                isListening ? 'bg-red-400 text-white scale-110 shadow-red-200' : 'bg-white text-sky-500 hover:scale-105 hover:shadow-xl'
+              }`}
+            >
+              {loading ? <Loader2 className="w-7 h-7 animate-spin text-amber-400" />
+                : isListening ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
+            </button>
+
+            {/* Language */}
+            <button onClick={() => setShowLangPicker(v => !v)}
+              className="w-12 h-12 rounded-full bg-white/60 backdrop-blur-sm border border-white/80 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors shadow-sm">
+              <Globe className="w-5 h-5" />
+            </button>
+          </div>
+          <p className="text-center text-[10px] text-slate-400/60 mt-5 font-medium">Saarthi AI · Predict Aid</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Text Chat Mode ────────────────────────────────────────────────────────────
+  return (
+    <div className="h-full flex flex-col" style={bgStyle}>
+      <Header />
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4">
-        {messages.length === 0 && (
-          <Card className="p-4 md:p-8 text-center bg-card/50 backdrop-blur border-border/40">
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3 md:mb-4">
-              <Bot className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+      <div className="flex-1 overflow-y-auto px-4 py-2 space-y-4">
+        {messages.length === 0 ? (
+          <div className="pt-2 space-y-5">
+            <div className="flex flex-col items-center py-6">
+              <NatureElement state="idle" />
+              <h2 className="text-lg font-bold text-slate-700 -mt-2">Ask Saarthi</h2>
+              <p className="text-sm text-slate-400 mt-1">
+                {locationName ? `Serving ${locationName}` : 'Your disaster management AI'}
+              </p>
             </div>
-            <h3 className="text-base md:text-lg font-semibold mb-2 text-foreground">Welcome to Saarthi</h3>
-            <p className="text-xs md:text-sm text-muted-foreground mb-4">
-              Your disaster and medical response assistant. Get help with emergencies, health, weather, and safety.
-              {userLocation && locationName && (
-                <span className="block mt-2 text-primary font-medium">
-                  📍 {locationName}
-                </span>
-              )}
-            </p>
-
-            {/* Quick Topic Buttons */}
-            <div className="mb-4">
-              <p className="text-xs md:text-sm font-medium text-muted-foreground mb-2">Quick Topics:</p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {quickTopics.map((topic, idx) => (
-                  <Button
-                    key={idx}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickTopic(topic.query)}
-                    className="text-xs h-7 md:h-8 px-2 md:px-3 hover:bg-primary/10 hover:border-primary/40 transition-colors"
-                  >
-                    {topic.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs md:text-sm max-w-md mx-auto">
-              <div className="p-2 md:p-3 bg-muted/50 rounded-lg text-left">
-                <p className="font-medium text-foreground">Try asking:</p>
-                <p className="text-muted-foreground">"What's the weather here?"</p>
-              </div>
-              <div className="p-2 md:p-3 bg-muted/50 rounded-lg text-left">
-                <p className="font-medium text-foreground">Or:</p>
-                <p className="text-muted-foreground">"Find nearby hospitals"</p>
-              </div>
-            </div>
-
-            {!online && (
-              <div className="mt-4 p-3 bg-warning/10 border border-warning/30 rounded-lg">
-                <p className="text-xs md:text-sm text-warning font-medium">
-                  📵 Offline Mode Active
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Basic medical and disaster information available
-                </p>
-              </div>
-            )}
-          </Card>
-        )}
-
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[95%] sm:max-w-[85%] md:max-w-[80%] ${message.role === 'user'
-                ? 'ml-auto'
-                : ''
-                }`}
-            >
-              <div
-                className={`p-3 md:p-4 rounded-2xl ${message.role === 'user'
-                  ? 'bg-primary text-primary-foreground text-sm md:text-base'
-                  : 'bg-card border border-border/40 text-card-foreground'
-                  }`}
-              >
-                {message.role === 'user' ? (
-                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                ) : (
-                  <div className="space-y-1 text-sm leading-relaxed">
-                    {renderMarkdown(message.content.replace(/\[ACTION:SHOW_FACILITIES:[^\]]+\]/, ''))}
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons for Specific Facilities */}
-              {message.role === 'assistant' && (
-                (() => {
-                  const match = message.content.match(/\[ACTION:SHOW_FACILITIES:(hospital|police|fire_station|shelter)\]/);
-                  if (match) {
-                    const actionType = match[1];
-                    const relevantFacilities = [];
-                    const seenNames = new Set();
-                    for (const f of facilities) {
-                      if (f.type === actionType && !seenNames.has(f.name)) {
-                        seenNames.add(f.name);
-                        relevantFacilities.push(f);
-                        if (relevantFacilities.length === 5) break;
-                      }
-                    }
-
-                    if (relevantFacilities.length > 0) {
-                      return (
-                        <div className="mt-3 space-y-2">
-                          {relevantFacilities.map((facility, idx) => (
-                            <Card key={idx} className="p-3 bg-card/50 border-border/40">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-sm text-foreground truncate">
-                                    {facility.name}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {(facility.distance).toFixed(1)} km away
-                                  </p>
-                                  {facility.contact && (
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      📞 {facility.contact}
-                                    </p>
-                                  )}
-                                </div>
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    window.dispatchEvent(new CustomEvent('changeTab', { detail: 'emergency-services' }));
-                                    setTimeout(() => {
-                                      window.dispatchEvent(new CustomEvent('routeToFacility', { detail: facility }));
-                                    }, 400); // Allow tab to mount
-                                  }}
-                                  className="shrink-0"
-                                >
-                                  <Navigation className="w-3 h-3 mr-1" />
-                                  Directions
-                                </Button>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      );
-                    }
-                  }
-                  return null;
-                })()
-              )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {quickPrompts.map((q, i) => (
+                <button key={i} onClick={() => handleSend(q)}
+                  className="w-full flex items-center justify-between bg-white/40 backdrop-blur-xl border border-white/50 shadow-sm rounded-2xl px-4 py-3 text-xs lg:text-sm font-medium text-slate-700 hover:bg-white/60 hover:border-white/70 transition-all duration-300 active:scale-[0.98] text-left">
+                  <span className="leading-snug truncate pr-1">{q}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                </button>
+              ))}
             </div>
           </div>
-        ))}
+        ) : (
+          messages.map((msg, i) => (
+            <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              {msg.role === 'user' ? (
+                <div className="max-w-[80%] bg-white/80 backdrop-blur-sm border border-white/90 rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
+                  <p className="text-sm text-slate-700 font-medium">{msg.content}</p>
+                </div>
+              ) : (
+                <div className="max-w-[90%] space-y-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ background: 'radial-gradient(circle at 35% 35%, #86efac, #34d399 50%, #059669)' }} />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Saarthi</span>
+                  </div>
+                  <div className="text-slate-600 leading-relaxed">
+                    {renderMarkdown(msg.content.replace(/\[ACTION:[^\]]+\]/g, ''))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => speakText(msg.content)}
+                      className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 hover:text-sky-500 transition-colors">
+                      <Volume2 className="w-3 h-3" /> Listen
+                    </button>
+                  </div>
+
+                  {/* Facility cards */}
+                  {msg.content.includes('SHOW_FACILITIES') && facilities.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {facilities.slice(0, 3).map((f, j) => (
+                        <div key={j} className="flex items-center justify-between bg-white/60 backdrop-blur-sm border border-white/80 rounded-xl px-3 py-2.5">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-700 truncate max-w-[160px]">{f.name}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">{f.distance?.toFixed(1)} km</p>
+                          </div>
+                          <button onClick={() => {
+                            window.dispatchEvent(new CustomEvent('changeTab', { detail: 'emergency-services' }));
+                            setTimeout(() => window.dispatchEvent(new CustomEvent('routeToFacility', { detail: f })), 300);
+                          }} className="flex items-center gap-1 bg-sky-50 hover:bg-sky-500 text-sky-500 hover:text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex-shrink-0 ml-2">
+                            <Navigation className="w-3 h-3" /> Directions
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Action pills */}
+                  {(msg.content.match(/\[ACTION:[^\]]+\]/g) || []).filter(t => !t.includes('SHOW_FACILITIES')).map((token, j) => (
+                    <button key={j}
+                      className="inline-flex items-center gap-1.5 bg-white/60 backdrop-blur-sm border border-sky-100 text-sky-500 text-[11px] font-semibold px-3 py-1.5 rounded-full mt-1 mr-1 hover:bg-sky-50 transition-colors">
+                      {token.split(':')[1].replace(/_/g, ' ').replace(']', '')} <ArrowRight className="w-3 h-3" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))
+        )}
 
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-card border border-border/40 p-4 rounded-2xl">
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span className="text-muted-foreground">Thinking...</span>
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ background: 'radial-gradient(circle at 35% 35%, #86efac, #34d399 50%, #059669)' }} />
+            <div className="bg-white/60 backdrop-blur-sm border border-white/80 rounded-2xl rounded-tl-sm px-4 py-3">
+              <div className="flex gap-1.5 items-center h-4">
+                {[0,150,300].map(d => <div key={d} className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
               </div>
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="h-2" />
       </div>
 
       {/* Input */}
-      <div className="p-3 md:p-6 border-t border-border/40 bg-card/50 backdrop-blur">
-        <div className="flex gap-2">
-          <Input
+      <div className="px-4 pb-5 pt-3 flex-shrink-0">
+        <div className="flex items-center gap-2 bg-white/60 backdrop-blur-md border border-white/90 rounded-2xl px-4 py-3 shadow-sm">
+          <input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={online ? "Ask about disasters, first aid, emergency numbers..." : "Offline: ask about first aid, emergencies..."}
-            className="flex-1 bg-background border-border/40 text-sm md:text-base h-9 md:h-10"
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            placeholder={`Ask Saarthi${locationName ? ` about ${locationName}` : ''}...`}
+            className="flex-1 bg-transparent text-sm text-slate-600 placeholder:text-slate-400 focus:outline-none font-medium"
             disabled={loading}
           />
-          <Button
-            id="copilot-send-btn"
-            onClick={handleSend}
-            disabled={loading || !input.trim()}
-            size="icon"
-            className="shrink-0 h-9 w-9 md:h-10 md:w-10"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </Button>
+          <button onClick={toggleListening}
+            className={`p-1.5 rounded-lg transition-colors ${isListening ? 'text-red-400' : 'text-slate-300 hover:text-sky-400'}`}>
+            {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </button>
+          <button onClick={() => handleSend()} disabled={loading || !input.trim()}
+            className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-xl bg-sky-400 hover:bg-sky-500 active:scale-95 text-white transition-all disabled:opacity-30 shadow-md shadow-sky-100">
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+          </button>
         </div>
+        <p className="text-center text-[10px] text-slate-400/60 mt-2 font-medium">Saarthi AI · Predict Aid</p>
       </div>
     </div>
   );
