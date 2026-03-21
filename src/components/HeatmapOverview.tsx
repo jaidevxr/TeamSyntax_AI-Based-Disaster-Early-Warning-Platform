@@ -476,7 +476,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     const signal = abortController.signal;
 
     const CACHE_KEY = 'heatmap_weather_cache';
-    const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+    const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
     // Try to restore from cache first
     const tryRestoreCache = (): boolean => {
@@ -531,7 +531,6 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       }
       throw new Error('Max retries exceeded');
     };
-
     const loadData = async () => {
       // Try cache first
       if (tryRestoreCache()) {
@@ -547,12 +546,10 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       setLoadingProgress({ current: 0, total: totalCities });
 
       const dataMap = new Map<string, { temp: number; aqi: number; floodRisk: number; floodFactors: string[] }>();
-      const BATCH_SIZE = 4; // Smaller batches to avoid WAQI rate limits
-      let loadedCount = 0;
 
       try {
-        // Fetch weather in CHUNKED bulk requests (15 cities each) to avoid 429 rate limits
-        const METEO_CHUNK = 15;
+        // Phase 1: Fetch weather in small chunks — CURRENT data ONLY (no hourly/forecast to minimize payload)
+        const METEO_CHUNK = 10;
         let meteoData: any[] = new Array(cities.length).fill(null);
 
         for (let c = 0; c < cities.length; c += METEO_CHUNK) {
@@ -562,7 +559,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
           const chunkLngs = chunk.map(ci => ci.lng).join(',');
           try {
             const wRes = await fetchWithRetry(
-              `https://api.open-meteo.com/v1/forecast?latitude=${chunkLats}&longitude=${chunkLngs}&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m&hourly=precipitation&forecast_days=3&timezone=auto`,
+              `https://api.open-meteo.com/v1/forecast?latitude=${chunkLats}&longitude=${chunkLngs}&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m&timezone=auto`,
               { signal },
               3
             );
@@ -576,17 +573,22 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
           } catch (e) {
             console.warn(`⚠️ Weather chunk ${c}-${c + METEO_CHUNK} failed`, e);
           }
-          // Delay between chunks to stay under rate limit
+          // Update progress
+          setLoadingProgress({ current: Math.min(c + METEO_CHUNK, totalCities), total: totalCities });
+          // 3 second delay between chunks to stay under rate limit
           if (c + METEO_CHUNK < cities.length) {
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 3000));
           }
         }
-        console.log(`🌦️ Weather data fetched for ${meteoData.filter(Boolean).length}/${cities.length} cities`);
 
-        for (let i = 0; i < cities.length; i += BATCH_SIZE) {
+        const weatherCount = meteoData.filter(Boolean).length;
+        console.log(`🌦️ Weather data fetched for ${weatherCount}/${cities.length} cities`);
+
+        // Phase 2: Process each city — compute risk from current data + fetch AQI
+        const AQI_BATCH = 2;
+        for (let i = 0; i < cities.length; i += AQI_BATCH) {
           if (signal.aborted) break;
-
-          const batch = cities.slice(i, i + BATCH_SIZE);
+          const batch = cities.slice(i, i + AQI_BATCH);
 
           await Promise.allSettled(
             batch.map(async (city, idx) => {
@@ -599,27 +601,29 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
                 if (meteoData[cityIndex]?.current?.temperature_2m != null) {
                   const current = meteoData[cityIndex].current;
-                  const hourly = meteoData[cityIndex].hourly?.precipitation || [];
                   temp = current.temperature_2m;
+                  const humidity = current.relative_humidity_2m || 50;
+                  const pressure = current.surface_pressure || 1010;
+                  const wind = current.wind_speed_10m || 10;
+                  const currentPrecip = current.precipitation || 0;
 
-                  // Calculate ML features
-                  const precip24h = hourly.slice(0, 24).reduce((a: number, b: number) => a + (b || 0), 0);
-                  const precip48h = hourly.slice(0, 48).reduce((a: number, b: number) => a + (b || 0), 0);
-                  const precip72h = hourly.reduce((a: number, b: number) => a + (b || 0), 0);
-                  const maxHourly = Math.max(...hourly.map((v: number) => v || 0), 0);
+                  // Estimate precipitation values from current reading
+                  const estimatedPrecip24h = currentPrecip * 24;
+                  const estimatedPrecip48h = currentPrecip * 48;
+                  const estimatedPrecip72h = currentPrecip * 72;
                   const is_monsoon = [5, 6, 7, 8, 9].includes(new Date().getMonth()) ? 1 : 0;
                   const is_coastal = (lng < 74 || lng > 83 || (lat < 16 && lng > 74)) ? 1 : 0;
 
-                  // Run ML model inference
+                  // Run ML model inference with estimated features
                   const prediction = await predictFlood({
-                    rainfall_24h_mm: precip24h,
-                    rainfall_48h_mm: precip48h,
-                    rainfall_72h_mm: precip72h,
-                    max_hourly_rate_mm: maxHourly,
-                    temperature_c: temp as number,
-                    humidity_pct: current.relative_humidity_2m || 50,
-                    pressure_hpa: current.surface_pressure || 1010,
-                    wind_speed_kmh: current.wind_speed_10m || 10,
+                    rainfall_24h_mm: estimatedPrecip24h,
+                    rainfall_48h_mm: estimatedPrecip48h,
+                    rainfall_72h_mm: estimatedPrecip72h,
+                    max_hourly_rate_mm: currentPrecip,
+                    temperature_c: temp,
+                    humidity_pct: humidity,
+                    pressure_hpa: pressure,
+                    wind_speed_kmh: wind,
                     is_monsoon,
                     is_coastal
                   });
@@ -627,15 +631,15 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
                   if (prediction) {
                     floodRisk = prediction.probability;
                     floodFactors = [
-                      `Prec 72h: ${precip72h.toFixed(1)}mm`,
-                      `Max Hrly: ${maxHourly.toFixed(1)}mm/h`,
-                      `Soil Moist: ${current.relative_humidity_2m || 50}%`,
-                      `Wind: ${current.wind_speed_10m || 10}km/h`
+                      `Precip: ${currentPrecip.toFixed(1)}mm/h`,
+                      `Humidity: ${humidity}%`,
+                      `Pressure: ${pressure.toFixed(0)}hPa`,
+                      `Wind: ${wind.toFixed(1)}km/h`
                     ];
                   }
                 }
 
-                // Fetch AQI individually since WAQI doesn't support bulk lat/lng natively
+                // Fetch AQI
                 let aqi: number | null = null;
                 try {
                   const aqiRes = await fetch(
@@ -646,27 +650,20 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
                     const d = await aqiRes.json();
                     if (d.status === 'ok' && d.data?.aqi) aqi = d.data.aqi;
                   }
-                } catch {
-                  // AQI fetch failed, use fallback
-                }
+                } catch { /* AQI fetch failed */ }
 
                 if (temp !== null) {
                   dataMap.set(`${lat},${lng}`, { temp, aqi: aqi || 75, floodRisk, floodFactors });
                 }
-              } catch {
-                // Ignore per-city failures
-              }
+              } catch { /* per-city failure */ }
             })
           );
 
-          // Longer breather between batches to avoid WAQI 429s
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // 1s delay between AQI batches
+          await new Promise(resolve => setTimeout(resolve, 1000));
 
-          loadedCount = Math.min(i + BATCH_SIZE, totalCities);
-          setLoadingProgress({ current: loadedCount, total: totalCities });
-
-          // Update data progressively so user sees results appearing
-          if (dataMap.size > 0 && loadedCount % 16 === 0) {
+          // Progressive render every 10 cities
+          if (dataMap.size > 0 && i % 10 === 0) {
             setWeatherData(new Map(dataMap));
           }
         }
@@ -676,7 +673,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
       if (!signal.aborted) {
         setWeatherData(new Map(dataMap));
-        saveToCache(dataMap); // Persist for next reload
+        if (dataMap.size > 0) saveToCache(dataMap);
         setLoading(false);
         setLoadingProgress({ current: 0, total: 0 });
         console.log(`✅ Heatmap loaded ${dataMap.size}/${totalCities} cities`);
