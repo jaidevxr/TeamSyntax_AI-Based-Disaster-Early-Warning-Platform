@@ -1048,7 +1048,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
       {/* === MOBILE RISK LEGEND (sits above the mode tab bar) === */}
       {overlayMode === 'disaster' && (
-        <div className="lg:hidden absolute bottom-[6rem] left-3 z-[999]">
+        <div className="lg:hidden absolute bottom-24 left-3 z-[999]">
           {!isLegendMobileOpen ? (
             <Button
               className="rounded-full shadow-2xl h-10 px-4 glass-strong bg-card/90 border border-border/40 backdrop-blur-xl flex items-center justify-center gap-2 animate-in fade-in zoom-in duration-300"
@@ -1097,7 +1097,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
       {/* Weather/Pollution Legend - sits above the Risk/SOS row on mobile */}
       {overlayMode !== 'disaster' && (
-        <div className="absolute bottom-[6rem] lg:bottom-20 left-3 glass-strong p-2 lg:p-3 rounded-xl shadow-elevated border border-border/40 z-[999] max-w-[160px] lg:max-w-[200px] backdrop-blur-xl">
+        <div className="absolute bottom-24 lg:bottom-20 left-3 glass-strong p-2 lg:p-3 rounded-xl shadow-elevated border border-border/40 z-[999] max-w-[160px] lg:max-w-[200px] backdrop-blur-xl">
           <h3 className="text-[10px] md:text-xs font-semibold mb-1.5 md:mb-2">
             {overlayMode === 'temperature' ? 'Temperature' : 'Air Quality'}
           </h3>
@@ -1146,8 +1146,8 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       )}
 
       {/* Emergency SOS - Mobile adjusted above bottom nav */}
-      <div className="absolute bottom-[5.5rem] lg:bottom-6 right-3 lg:right-6 z-[999] pointer-events-none">
-        <div className="glass-strong rounded-2xl p-1.5 lg:p-3 border border-border/30 shadow-lg backdrop-blur-xl pointer-events-auto">
+      <div className="absolute bottom-24 lg:bottom-6 right-3 lg:right-6 z-[999] pointer-events-none">
+        <div className="glass-strong rounded-2xl p-0.5 lg:p-3 border border-border/30 shadow-lg backdrop-blur-xl pointer-events-auto">
           <EmergencySOS
             userLocation={userLocation}
             nearbyDisasters={nearbyDisasters}
