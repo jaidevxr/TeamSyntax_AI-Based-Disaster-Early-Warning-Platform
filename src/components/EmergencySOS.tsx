@@ -161,7 +161,7 @@ const EmergencySOS: React.FC<EmergencySOSProps> = ({ userLocation, nearbyDisaste
 
       {/* Emergency Alert Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog} modal={false}>
-        <DialogContent className="max-w-md sm:max-w-lg mx-4 z-[3000]" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md mx-auto z-[3000]" onPointerDownOutside={(e) => e.preventDefault()}>
 
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
@@ -173,9 +173,9 @@ const EmergencySOS: React.FC<EmergencySOSProps> = ({ userLocation, nearbyDisaste
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {userLocation && (
-              <div className="p-3 bg-muted rounded-lg text-sm">
+              <div className="p-2.5 bg-muted rounded-lg text-sm">
                 <div className="flex items-center gap-2 font-semibold mb-1">
                   <MapPin className="h-4 w-4" />
                   Your Location
@@ -187,7 +187,7 @@ const EmergencySOS: React.FC<EmergencySOSProps> = ({ userLocation, nearbyDisaste
             )}
 
             {nearbyDisasters.length > 0 && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm">
+              <div className="p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg text-sm">
                 <div className="font-semibold text-destructive mb-1">
                   ⚠️ {nearbyDisasters.length} Nearby Disaster{nearbyDisasters.length > 1 ? 's' : ''}
                 </div>
@@ -204,7 +204,7 @@ const EmergencySOS: React.FC<EmergencySOSProps> = ({ userLocation, nearbyDisaste
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 placeholder="e.g., I'm safe but need assistance, evacuating to shelter, injured and need help..."
-                rows={4}
+                rows={3}
                 className="resize-none"
               />
             </div>

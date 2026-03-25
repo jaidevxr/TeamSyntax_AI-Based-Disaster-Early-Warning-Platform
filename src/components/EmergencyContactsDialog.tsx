@@ -71,7 +71,7 @@ const EmergencyContactsDialog: React.FC<EmergencyContactsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
-      <DialogContent className="max-w-2xl max-h-[90vh] mx-4 z-[3000]" onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[85vh] overflow-y-auto mx-auto z-[3000]" onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
@@ -82,15 +82,15 @@ const EmergencyContactsDialog: React.FC<EmergencyContactsDialogProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-3 md:space-y-6">
           {/* Add New Contact Form */}
-          <div className="border rounded-lg p-4 space-y-4">
+          <div className="border rounded-lg p-3 md:p-4 space-y-3 md:space-y-4">
             <h3 className="font-semibold flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
               Add New Contact
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name *</Label>
                 <Input
@@ -146,10 +146,10 @@ const EmergencyContactsDialog: React.FC<EmergencyContactsDialogProps> = ({
               Your Emergency Contacts ({contacts.length})
             </h3>
             
-            <ScrollArea className="h-[300px] rounded-lg border p-4">
+            <ScrollArea className="h-[180px] md:h-[300px] rounded-lg border p-3 md:p-4">
               {contacts.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <div className="text-center text-muted-foreground py-4 md:py-8">
+                  <Users className="h-8 w-8 md:h-12 md:w-12 mx-auto mb-2 opacity-50" />
                   <p>No emergency contacts added yet</p>
                 </div>
               ) : (
