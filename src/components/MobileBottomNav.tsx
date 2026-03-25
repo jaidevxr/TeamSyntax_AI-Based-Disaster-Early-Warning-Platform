@@ -23,8 +23,8 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-[1000] px-1 pb-safe pt-1 bg-background/95 backdrop-blur-xl border-t border-border/40 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.25)]">
-      <div className="flex items-center justify-around w-full mb-0.5">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-[5000] px-0 pt-1 bg-background/95 backdrop-blur-xl border-t border-border/40 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.25)]" style={{ paddingBottom: 'max(4px, env(safe-area-inset-bottom))' }}>
+      <div className="flex items-center justify-around w-full">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
@@ -33,11 +33,11 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className="relative flex flex-col items-center justify-center w-12 h-10 transition-all duration-300 group"
+              className="relative flex flex-1 flex-col items-center justify-center min-h-[48px] py-1.5 transition-all duration-300 group"
             >
               <div
                 className={cn(
-                  "flex items-center justify-center w-7 h-7 rounded-full mb-0.5 transition-all duration-300",
+                  "flex items-center justify-center w-8 h-8 rounded-full mb-0.5 transition-all duration-300",
                   isActive
                     ? "bg-primary/20 scale-110 shadow-inner"
                     : "bg-transparent text-muted-foreground group-hover:scale-105 group-hover:bg-primary/5"
@@ -45,7 +45,7 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               >
                 <Icon
                   className={cn(
-                    "w-4 h-4 transition-colors duration-300",
+                    "w-[18px] h-[18px] transition-colors duration-300",
                     isActive ? "text-primary" : "text-muted-foreground"
                   )}
                   strokeWidth={isActive ? 2.5 : 2}
@@ -53,7 +53,7 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               </div>
               <span
                 className={cn(
-                  "text-[10px] sm:text-[11px] font-semibold transition-colors duration-300 tracking-tight",
+                  "text-[10px] sm:text-[11px] font-semibold transition-colors duration-300 tracking-tight leading-tight",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}
               >
@@ -61,7 +61,7 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
               </span>
               
               {isActive && (
-                <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-b-full shadow-[0_2px_8px_rgba(0,200,100,0.5)]" />
+                <span className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-b-full shadow-[0_2px_8px_rgba(0,200,100,0.5)]" />
               )}
             </button>
           );
@@ -70,12 +70,12 @@ const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         {/* Menu Button to trigger the main Sidebar */}
         <button
           onClick={onOpenMenu}
-          className="relative flex flex-col items-center justify-center w-12 h-10 transition-all duration-300 group"
+          className="relative flex flex-1 flex-col items-center justify-center min-h-[48px] py-1.5 transition-all duration-300 group"
         >
-          <div className="flex items-center justify-center w-7 h-7 rounded-full mb-0.5 transition-all duration-300 bg-transparent text-muted-foreground group-hover:scale-105 group-hover:bg-primary/5">
-            <Menu className="w-4 h-4 text-muted-foreground" strokeWidth={2} />
+          <div className="flex items-center justify-center w-8 h-8 rounded-full mb-0.5 transition-all duration-300 bg-transparent text-muted-foreground group-hover:scale-105 group-hover:bg-primary/5">
+            <Menu className="w-[18px] h-[18px] text-muted-foreground" strokeWidth={2} />
           </div>
-          <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground transition-colors duration-300 tracking-tight">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground transition-colors duration-300 tracking-tight leading-tight">
             {language === 'en' ? 'More' : 'अधिक'}
           </span>
         </button>

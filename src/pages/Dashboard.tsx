@@ -297,7 +297,7 @@ const Dashboard: React.FC = () => {
     switch (activeTab) {
       case 'overview':
         return (
-          <div className="h-full pb-16 md:pb-0">
+          <div className="h-full pb-14 md:pb-0">
             <HeatmapOverview
               disasters={disasters}
               userLocation={userLocation}
@@ -416,7 +416,7 @@ const Dashboard: React.FC = () => {
 
       case 'emergency-services':
         return (
-          <div className="h-full pb-16 md:pb-0">
+          <div className="h-full pb-14 md:pb-0">
             <EmergencyServicesMap onFacilityClick={handleFacilityClick} userLocation={userLocation} />
           </div>
         );
@@ -430,7 +430,7 @@ const Dashboard: React.FC = () => {
 
       case 'ai-insights':
         return (
-          <div className="h-full pb-16 md:pb-0">
+          <div className="h-full pb-14 md:pb-0">
             <CopilotChat userLocation={userLocation} facilities={facilities} />
           </div>
         );
@@ -482,13 +482,13 @@ const Dashboard: React.FC = () => {
         {/* Mobile: Overlay when sidebar is open */}
         {!sidebarCollapsed && (
           <div
-            className="fixed inset-0 bg-background/60 z-[2999] md:hidden backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-background/60 z-[5500] md:hidden backdrop-blur-sm transition-opacity"
             onClick={() => setSidebarCollapsed(true)}
           />
         )}
 
         {/* Main Content */}
-        <main className="flex-1 w-full h-full overflow-hidden relative pb-16 md:pb-0">
+        <main className="flex-1 w-full h-full overflow-hidden relative">
 
           <div className="h-full w-full">
             {renderTabContent()}
