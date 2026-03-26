@@ -186,10 +186,17 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
       handleSend(e.results[0][0].transcript); 
     };
     rec.onerror = (e: any) => {
-      console.error("Speech recognition error:", e.error);
       setIsListening(false);
+      // 'no-speech' and 'aborted' are normal — user didn't speak in time or session was cancelled
+      if (e.error === 'no-speech' || e.error === 'aborted') {
+        console.log(`🎙 Speech ended: ${e.error}`);
+        return;
+      }
+      console.error("Speech recognition error:", e.error);
       if (e.error === 'not-allowed' || e.error === 'permission-denied') {
         toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings.", variant: "destructive" });
+      } else if (e.error === 'network') {
+        toast({ title: "Network error", description: "Speech recognition requires an internet connection.", variant: "destructive" });
       } else {
         toast({ title: "Voice error", description: `Could not listen: ${e.error}`, variant: "destructive" });
       }
@@ -225,13 +232,50 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
   const speakText = (text: string) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const clean = text.replace(/\[ACTION:[^\]]+\]/g, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
-    const utt = new SpeechSynthesisUtterance(clean);
-    utt.lang = LANGUAGES.find(l => l.code === language)?.voice || 'en-IN';
-    utt.rate = 0.95;
-    utt.onstart = () => setIsSpeaking(true);
-    utt.onend = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utt);
+    const clean = text.replace(/\[ACTION:[^\]]+\]/g, '').replace(/\*\*/g, '').replace(/\*/g, '').replace(/#+\s/g, '').trim();
+    if (!clean) return;
+
+    // Split into sentences to avoid Chrome's ~15s TTS cutoff bug
+    const sentences = clean.match(/[^.!?\n]+[.!?]?/g) || [clean];
+    const chunks = sentences.reduce<string[]>((acc, s) => {
+      const trimmed = s.trim();
+      if (!trimmed) return acc;
+      const last = acc[acc.length - 1];
+      // Merge short sentences into ~120 char chunks
+      if (last && last.length + trimmed.length < 120) {
+        acc[acc.length - 1] = last + ' ' + trimmed;
+      } else {
+        acc.push(trimmed);
+      }
+      return acc;
+    }, []);
+
+    const voiceLang = LANGUAGES.find(l => l.code === language)?.voice || 'en-IN';
+    setIsSpeaking(true);
+
+    // Chrome resume() keepalive — prevents speech from pausing silently
+    const keepAlive = setInterval(() => {
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.resume();
+      }
+    }, 5000);
+
+    chunks.forEach((chunk, i) => {
+      const utt = new SpeechSynthesisUtterance(chunk);
+      utt.lang = voiceLang;
+      utt.rate = 0.95;
+      if (i === chunks.length - 1) {
+        utt.onend = () => {
+          clearInterval(keepAlive);
+          setIsSpeaking(false);
+          // Auto-listen again in voice mode for natural conversation
+          if (mode === 'voice') {
+            setTimeout(() => toggleListening(), 500);
+          }
+        };
+      }
+      window.speechSynthesis.speak(utt);
+    });
   };
 
   const handleSend = async (overrideInput?: string) => {

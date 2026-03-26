@@ -550,7 +550,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
 
       try {
         // Phase 1: Fetch weather in small chunks — CURRENT data ONLY (no hourly/forecast to minimize payload)
-        const METEO_CHUNK = 10;
+        const METEO_CHUNK = 25;
         let meteoData: any[] = new Array(cities.length).fill(null);
 
         for (let c = 0; c < cities.length; c += METEO_CHUNK) {
@@ -576,17 +576,13 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
           }
           // Update progress
           setLoadingProgress({ current: Math.min(c + METEO_CHUNK, totalCities), total: totalCities });
-          // 3 second delay between chunks to stay under rate limit
-          if (c + METEO_CHUNK < cities.length) {
-            await new Promise(r => setTimeout(r, 3000));
-          }
         }
 
         const weatherCount = meteoData.filter(Boolean).length;
         console.log(`🌦️ Weather data fetched for ${weatherCount}/${cities.length} cities`);
 
         // Phase 2: Process each city — compute risk from current data + fetch AQI
-        const AQI_BATCH = 2;
+        const AQI_BATCH = 10;
         for (let i = 0; i < cities.length; i += AQI_BATCH) {
           if (signal.aborted) break;
           const batch = cities.slice(i, i + AQI_BATCH);
@@ -660,8 +656,6 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
             })
           );
 
-          // 1s delay between AQI batches
-          await new Promise(resolve => setTimeout(resolve, 1000));
 
           // Progressive render every 10 cities
           if (dataMap.size > 0 && i % 10 === 0) {
@@ -1023,24 +1017,24 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
           <div className="space-y-1.5 mb-3">
             <div onClick={() => toggleFilter('high')} className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all duration-300 border ${activeFilters.has('high') ? 'border-destructive/40 bg-destructive/10' : 'opacity-50 hover:opacity-80 hover:bg-muted/30 border-transparent'}`}>
               <div className="w-4 h-4 rounded-full border-2 mt-0.5 shrink-0" style={{ background: 'hsl(var(--destructive))', borderColor: 'hsl(var(--destructive))' }}></div>
-              <div><span className="text-sm font-semibold text-foreground block">High ≥ 65%</span><span className="text-[10px] text-muted-foreground leading-tight">Coastal / cyclone zone, AQI &gt; 200, temp &gt; 40°C</span></div>
+              <div><span className="text-sm font-semibold text-foreground block">High ≥ 65%</span><span className="text-[10px] text-muted-foreground leading-tight">Heavy rainfall, high humidity, low pressure</span></div>
             </div>
             <div onClick={() => toggleFilter('medium')} className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all duration-300 border ${activeFilters.has('medium') ? 'border-warning/40 bg-warning/10' : 'opacity-50 hover:opacity-80 hover:bg-muted/30 border-transparent'}`}>
               <div className="w-4 h-4 rounded-full border-2 mt-0.5 shrink-0" style={{ background: 'hsl(var(--warning))', borderColor: 'hsl(var(--warning))' }}></div>
-              <div><span className="text-sm font-semibold text-foreground block">Medium 45–64%</span><span className="text-[10px] text-muted-foreground leading-tight">Flood / seismic zone, AQI 150–200, temp 35–40°C</span></div>
+              <div><span className="text-sm font-semibold text-foreground block">Medium 45–64%</span><span className="text-[10px] text-muted-foreground leading-tight">Moderate rainfall, monsoon season, wind activity</span></div>
             </div>
             <div onClick={() => toggleFilter('low')} className={`flex items-start gap-3 p-2 rounded-lg cursor-pointer transition-all duration-300 border ${activeFilters.has('low') ? 'border-success/40 bg-success/10' : 'opacity-50 hover:opacity-80 hover:bg-muted/30 border-transparent'}`}>
               <div className="w-4 h-4 rounded-full border-2 mt-0.5 shrink-0" style={{ background: 'hsl(var(--success))', borderColor: 'hsl(var(--success))' }}></div>
-              <div><span className="text-sm font-semibold text-foreground block">Low &lt; 45%</span><span className="text-[10px] text-muted-foreground leading-tight">Inland / stable region, AQI &lt; 150, normal temp</span></div>
+              <div><span className="text-sm font-semibold text-foreground block">Low &lt; 45%</span><span className="text-[10px] text-muted-foreground leading-tight">Low precipitation, stable pressure, dry conditions</span></div>
             </div>
           </div>
 
           <div className="border-t border-border/30 pt-2">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Risk is calculated from</p>
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5"><span className="text-[10px]">🤖</span><span className="text-[10px] text-muted-foreground">TensorFlow.js Neural Network</span></div>
-              <div className="flex items-center gap-1.5"><span className="text-[10px]">🌦️</span><span className="text-[10px] text-muted-foreground">10 Live Open-Meteo Features</span></div>
-              <div className="flex items-center gap-1.5"><span className="text-[10px]">📊</span><span className="text-[10px] text-muted-foreground">Rainfall, Humidity, Pressure, Wind</span></div>
+              <div className="flex items-center gap-1.5"><span className="text-[10px]">🤖</span><span className="text-[10px] text-muted-foreground">TensorFlow.js Flood Prediction NN</span></div>
+              <div className="flex items-center gap-1.5"><span className="text-[10px]">🌦️</span><span className="text-[10px] text-muted-foreground">10 Live Weather Features (Open-Meteo)</span></div>
+              <div className="flex items-center gap-1.5"><span className="text-[10px]">📊</span><span className="text-[10px] text-muted-foreground">Rainfall, Humidity, Pressure, Wind, Monsoon</span></div>
             </div>
           </div>
         </div>
@@ -1073,21 +1067,22 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
               <div className="space-y-2 mb-3">
                 <div onClick={() => toggleFilter('high')} className={`flex items-start gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${activeFilters.has('high') ? 'shadow-sm border-destructive/40 bg-destructive/10' : 'opacity-50 border-transparent'}`}>
                   <div className="w-3 h-3 rounded-full border-2 mt-0.5 shrink-0" style={{ background: 'hsl(var(--destructive))', borderColor: 'hsl(var(--destructive))' }}></div>
-                  <div><span className="text-xs font-semibold block">High ≥ 65%</span><span className="text-[9px] text-muted-foreground leading-tight block mt-0.5">Coastal/cyclone, AQI &gt; 200, temp &gt; 40°C</span></div>
+                  <div><span className="text-xs font-semibold block">High ≥ 65%</span><span className="text-[9px] text-muted-foreground leading-tight block mt-0.5">Heavy rainfall, high humidity, low pressure</span></div>
                 </div>
                 <div onClick={() => toggleFilter('medium')} className={`flex items-start gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${activeFilters.has('medium') ? 'shadow-sm border-warning/40 bg-warning/10' : 'opacity-50 border-transparent'}`}>
                   <div className="w-3 h-3 rounded-full border-2 mt-0.5 shrink-0" style={{ background: 'hsl(var(--warning))', borderColor: 'hsl(var(--warning))' }}></div>
-                  <div><span className="text-xs font-semibold block">Medium 45–64%</span><span className="text-[9px] text-muted-foreground leading-tight block mt-0.5">Flood/seismic, AQI 150–200, temp 35–40°C</span></div>
+                  <div><span className="text-xs font-semibold block">Medium 45–64%</span><span className="text-[9px] text-muted-foreground leading-tight block mt-0.5">Moderate rainfall, monsoon season, wind activity</span></div>
                 </div>
                 <div onClick={() => toggleFilter('low')} className={`flex items-start gap-2 p-1.5 rounded-lg cursor-pointer transition-all border ${activeFilters.has('low') ? 'shadow-sm border-success/40 bg-success/10' : 'opacity-50 border-transparent'}`}>
                   <div className="w-3 h-3 rounded-full border-2 mt-0.5 shrink-0" style={{ background: 'hsl(var(--success))', borderColor: 'hsl(var(--success))' }}></div>
-                  <div><span className="text-xs font-semibold block">Low &lt; 45%</span><span className="text-[9px] text-muted-foreground leading-tight block mt-0.5">Inland/stable, AQI &lt; 150, normal temp</span></div>
+                  <div><span className="text-xs font-semibold block">Low &lt; 45%</span><span className="text-[9px] text-muted-foreground leading-tight block mt-0.5">Low precipitation, stable pressure, dry conditions</span></div>
                 </div>
               </div>
 
               <div className="border-t border-white/10 pt-2 space-y-1">
-                <p className="text-[10px] text-muted-foreground">🤖 TensorFlow.js Analysis</p>
-                <p className="text-[10px] text-muted-foreground">🌦️ Live Feature Feeds</p>
+                <p className="text-[10px] text-muted-foreground">🤖 TF.js Flood Prediction NN</p>
+                <p className="text-[10px] text-muted-foreground">🌦️ 10 Live Weather Features</p>
+                <p className="text-[10px] text-muted-foreground">📊 Rainfall · Humidity · Pressure · Wind</p>
               </div>
             </div>
           )}
