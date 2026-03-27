@@ -13,6 +13,9 @@ import VolunteerHub from '@/components/VolunteerHub';
 import EmergencyServicesMap from '@/components/EmergencyServicesMap';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import DisasterImageAnalyzer from '@/components/DisasterImageAnalyzer';
+import EarthquakeSimulator from '@/components/EarthquakeSimulator';
+import ShelterFinder from '@/components/ShelterFinder';
+import NASASatellite from '@/components/NASASatellite';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -447,6 +450,27 @@ const Dashboard: React.FC = () => {
         return (
           <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
             <DisasterGuidelines />
+          </div>
+        );
+
+      case 'earthquake-sim':
+        return (
+          <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
+            <EarthquakeSimulator userLocation={userLocation} language={language} />
+          </div>
+        );
+
+      case 'shelter-finder':
+        return (
+          <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
+            <ShelterFinder userLocation={userLocation} language={language} />
+          </div>
+        );
+
+      case 'nasa-satellite':
+        return (
+          <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
+            <NASASatellite language={language} />
           </div>
         );
 
