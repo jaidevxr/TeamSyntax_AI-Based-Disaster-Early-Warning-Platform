@@ -149,7 +149,7 @@ const OfflineSOS: React.FC<OfflineSOSProps> = ({ language = 'en', isCollapsed = 
             <div className="space-y-4 animate-in fade-in zoom-in duration-300">
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5 text-xs text-slate-500"><User className="w-3.5 h-3.5"/> {t.name}</Label>
-                <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Rahul Sharma" />
+                <Input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Enter your full name" />
               </div>
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5 text-xs text-slate-500"><HeartPulse className="w-3.5 h-3.5"/> {t.blood}</Label>
