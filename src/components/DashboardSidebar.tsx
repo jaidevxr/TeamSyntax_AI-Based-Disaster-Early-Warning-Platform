@@ -18,7 +18,7 @@ import {
   MessageSquare,
   Zap,
   Users,
-  Megaphone, // Added Megaphone icon
+  Brain,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -73,6 +73,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       volunteerHub: 'Volunteer Hub',
       aiInsights: 'AI Copilot',
       imageAnalyzer: 'Image Analyzer',
+      tweetClassifier: 'AI Text Classifier',
       alertHistory: 'Alert History',
     },
     hi: {
@@ -85,6 +86,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       volunteerHub: 'स्वयंसेवक हब',
       aiInsights: 'AI कोपायलट',
       imageAnalyzer: 'छवि विश्लेषक',
+      tweetClassifier: 'AI पाठ वर्गीकरण',
       alertHistory: 'अलर्ट इतिहास',
     }
   };
@@ -152,6 +154,13 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       icon: Camera,
       gradient: 'from-violet-500 to-fuchsia-600',
       description: 'AI damage assessment'
+    },
+    {
+      id: 'tweet-classifier',
+      label: labels[language].tweetClassifier,
+      icon: Brain,
+      gradient: 'from-violet-600 to-indigo-700',
+      description: 'BERT NLP classifier'
     },
     {
       id: 'alert-history',
