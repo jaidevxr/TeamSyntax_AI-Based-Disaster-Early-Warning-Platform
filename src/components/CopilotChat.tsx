@@ -149,6 +149,7 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
   const [mode, setMode] = useState<'text' | 'voice'>('text');
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const isListeningRef = useRef(false);
   const [language, setLanguage] = useState('en');
   const [showLangPicker, setShowLangPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -174,25 +175,44 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
+  const [interimText, setInterimText] = useState('');
+  const transcriptRef = useRef('');
+  const accumulatedRef = useRef('');
+
   const initRecognition = () => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRec) return null;
     const rec = new SpeechRec();
-    rec.continuous = false;
-    rec.interimResults = false;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
     rec.lang = LANGUAGES.find(l => l.code === language)?.voice || 'en-IN';
-    rec.onresult = (e: any) => { 
-      setIsListening(false); 
-      handleSend(e.results[0][0].transcript); 
+
+    rec.onresult = (e: any) => {
+      let sessionFinal = '';
+      let interim = '';
+      for (let i = 0; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          sessionFinal += t + ' ';
+        } else {
+          interim += t;
+        }
+      }
+      // Full transcript = accumulated from previous restarts + current session finals
+      transcriptRef.current = (accumulatedRef.current + ' ' + sessionFinal).trim();
+      setInterimText(interim);
     };
+
     rec.onerror = (e: any) => {
-      setIsListening(false);
-      // 'no-speech' and 'aborted' are normal — user didn't speak in time or session was cancelled
       if (e.error === 'no-speech' || e.error === 'aborted') {
         console.log(`🎙 Speech ended: ${e.error}`);
         return;
       }
       console.error("Speech recognition error:", e.error);
+      setIsListening(false);
+      isListeningRef.current = false;
+      setInterimText('');
       if (e.error === 'not-allowed' || e.error === 'permission-denied') {
         toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings.", variant: "destructive" });
       } else if (e.error === 'network') {
@@ -201,7 +221,18 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
         toast({ title: "Voice error", description: `Could not listen: ${e.error}`, variant: "destructive" });
       }
     };
-    rec.onend = () => setIsListening(false);
+
+    rec.onend = () => {
+      if (isListeningRef.current) {
+        // Save current transcript before restart (results will reset)
+        accumulatedRef.current = transcriptRef.current;
+        try { rec.start(); } catch {
+          setIsListening(false);
+          isListeningRef.current = false;
+        }
+      }
+    };
+
     return rec;
   };
 
@@ -212,19 +243,34 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
       return;
     }
     if (isListening) {
+      // STOP listening — send accumulated transcript
       try { recognitionRef.current?.stop(); } catch(e) {}
       setIsListening(false);
+      isListeningRef.current = false;
+      const fullText = (transcriptRef.current + ' ' + interimText).trim();
+      setInterimText('');
+      transcriptRef.current = '';
+      accumulatedRef.current = '';
+      if (fullText) {
+        handleSend(fullText);
+      }
     } else {
+      // START listening
+      transcriptRef.current = '';
+      accumulatedRef.current = '';
+      setInterimText('');
       const rec = initRecognition();
       if (!rec) return;
       recognitionRef.current = rec;
       try { 
         rec.start(); 
-        setIsListening(true); 
+        setIsListening(true);
+        isListeningRef.current = true; 
       } catch (err: any) {
         console.error("Failed to start speech recognition:", err);
         toast({ title: "Error starting mic", description: err.message || "Failed to start listening.", variant: "destructive" });
         setIsListening(false);
+        isListeningRef.current = false;
       }
     }
   };
@@ -416,9 +462,14 @@ Rules:
           <NatureElement state={voiceState} />
           <div className="text-center space-y-1 mt-2">
             <p className="text-base font-semibold text-slate-600">
-              {isListening ? '🎙 Listening...' : isSpeaking ? '🔊 Speaking...' : loading ? '💭 Thinking...' : 'Tap mic to speak'}
+              {isListening ? '🎙 Listening... tap mic to send' : isSpeaking ? '🔊 Speaking...' : loading ? '💭 Thinking...' : 'Tap mic to speak'}
             </p>
-            {messages.length > 0 && !isListening && !isSpeaking && (
+            {isListening && (transcriptRef.current || interimText) && (
+              <p className="text-sm text-slate-500 max-w-[280px] text-center leading-relaxed px-2">
+                {transcriptRef.current}{interimText && <span className="text-slate-400 italic">{' '}{interimText}</span>}
+              </p>
+            )}
+            {!isListening && messages.length > 0 && !isSpeaking && (
               <p className="text-xs text-slate-400 max-w-[240px] text-center leading-relaxed line-clamp-2">
                 {messages[messages.length - 1].content.replace(/\[ACTION:[^\]]+\]/g, '').slice(0, 90)}...
               </p>
