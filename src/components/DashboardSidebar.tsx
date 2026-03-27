@@ -75,9 +75,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       volunteerHub: 'Volunteer Hub',
       aiInsights: 'AI Copilot',
       imageAnalyzer: 'Image Analyzer',
-      earthquakeSim: 'Quake Simulator',
-      shelterFinder: 'Shelter Finder',
-      nasaSatellite: 'NASA Satellite',
       alertHistory: 'Alert History',
     },
     hi: {
@@ -90,9 +87,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       volunteerHub: 'स्वयंसेवक हब',
       aiInsights: 'AI कोपायलट',
       imageAnalyzer: 'छवि विश्लेषक',
-      earthquakeSim: 'भूकंप सिम्युलेटर',
-      shelterFinder: 'आश्रय खोजक',
-      nasaSatellite: 'NASA उपग्रह',
       alertHistory: 'अलर्ट इतिहास',
     }
   };
@@ -160,27 +154,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       icon: Camera,
       gradient: 'from-violet-500 to-fuchsia-600',
       description: 'AI damage assessment'
-    },
-    {
-      id: 'earthquake-sim',
-      label: labels[language].earthquakeSim,
-      icon: Activity,
-      gradient: 'from-red-600 to-orange-700',
-      description: 'Seismology physics engine'
-    },
-    {
-      id: 'shelter-finder',
-      label: labels[language].shelterFinder,
-      icon: Tent,
-      gradient: 'from-emerald-600 to-teal-700',
-      description: 'Nearby safe locations'
-    },
-    {
-      id: 'nasa-satellite',
-      label: labels[language].nasaSatellite,
-      icon: Satellite,
-      gradient: 'from-sky-600 to-indigo-800',
-      description: 'Live NASA EONET data'
     },
     {
       id: 'alert-history',

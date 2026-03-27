@@ -548,7 +548,7 @@ export const fetchEmergencyFacilities = async (location: Location, radius: numbe
 
   try {
     const { data, error } = await supabase.functions.invoke('v1-nearby', {
-      body: { lat: location.lat, lng: location.lng, types: 'hospital,police,fire_station' }
+      body: { lat: location.lat, lng: location.lng, types: 'hospital,police,fire_station,school,place_of_worship,community_centre' }
     });
 
     if (error) throw error;

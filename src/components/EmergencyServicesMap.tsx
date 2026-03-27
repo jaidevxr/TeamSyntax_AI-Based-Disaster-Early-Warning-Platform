@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Hospital, Shield, Flame, Navigation, X, MapPin, AlertTriangle } from 'lucide-react';
+import { Loader2, Hospital, Shield, Flame, Navigation, X, MapPin, AlertTriangle, School, Church, Tent } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface EmergencyServicesMapProps {
@@ -28,7 +28,7 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
   const [services, setServices] = useState<EmergencyService[]>([]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(["hospital", "police", "fire_station"]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(["hospital", "police", "fire_station", "school", "place_of_worship", "community_centre"]);
   const [selectedService, setSelectedService] = useState<EmergencyService | null>(null);
   const [showingRoute, setShowingRoute] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -378,6 +378,12 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
         return <Shield className="w-4 h-4" />;
       case "fire_station":
         return <Flame className="w-4 h-4" />;
+      case "school":
+        return <School className="w-4 h-4" />;
+      case "place_of_worship":
+        return <Church className="w-4 h-4" />;
+      case "community_centre":
+        return <Tent className="w-4 h-4" />;
       default:
         return <Hospital className="w-4 h-4" />;
     }
@@ -591,6 +597,9 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
             { id: "hospital", label: "Hospitals", icon: <Hospital className="w-4 h-4" /> },
             { id: "police", label: "Police", icon: <Shield className="w-4 h-4" /> },
             { id: "fire_station", label: "Fire Stations", icon: <Flame className="w-4 h-4" /> },
+            { id: "school", label: "Shelters (Schools)", icon: <School className="w-4 h-4" /> },
+            { id: "place_of_worship", label: "Temples/Mosques", icon: <Church className="w-4 h-4" /> },
+            { id: "community_centre", label: "Community Halls", icon: <Tent className="w-4 h-4" /> },
           ].map(({ id, label, icon }) => (
             <label key={id} className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={selectedTypes.includes(id)} onChange={(e) => e.target.checked ? setSelectedTypes([...selectedTypes, id]) : setSelectedTypes(selectedTypes.filter((t) => t !== id))} className="rounded" />
@@ -662,6 +671,9 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
                 { id: "hospital", label: "Hospital", icon: <Hospital className="w-3 h-3" /> },
                 { id: "police", label: "Police", icon: <Shield className="w-3 h-3" /> },
                 { id: "fire_station", label: "Fire", icon: <Flame className="w-3 h-3" /> },
+                { id: "school", label: "Shelter", icon: <School className="w-3 h-3" /> },
+                { id: "place_of_worship", label: "Temple", icon: <Church className="w-3 h-3" /> },
+                { id: "community_centre", label: "Community", icon: <Tent className="w-3 h-3" /> },
               ].map(({ id, label, icon }) => (
                 <button
                   key={id}

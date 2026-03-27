@@ -94,6 +94,9 @@ serve(async (req) => {
       if (type === 'hospital') return `node["amenity"="hospital"](around:${radius},${lat},${lng});`;
       if (type === 'police') return `node["amenity"="police"](around:${radius},${lat},${lng});`;
       if (type === 'fire_station') return `node["amenity"="fire_station"](around:${radius},${lat},${lng});`;
+      if (type === 'school') return `node["amenity"="school"](around:${radius},${lat},${lng});`;
+      if (type === 'place_of_worship') return `node["amenity"="place_of_worship"](around:${radius},${lat},${lng});`;
+      if (type === 'community_centre') return `node["amenity"="community_centre"](around:${radius},${lat},${lng});`;
       return '';
     }).filter(Boolean).join('\n        ');
 
@@ -117,6 +120,9 @@ serve(async (req) => {
       if (element.tags.amenity === 'hospital') serviceType = 'hospital';
       else if (element.tags.amenity === 'police') serviceType = 'police';
       else if (element.tags.amenity === 'fire_station') serviceType = 'fire_station';
+      else if (element.tags.amenity === 'school') serviceType = 'school';
+      else if (element.tags.amenity === 'place_of_worship') serviceType = 'place_of_worship';
+      else if (element.tags.amenity === 'community_centre') serviceType = 'community_centre';
 
       const distance = calculateDistance(lat, lng, element.lat, element.lon);
 
