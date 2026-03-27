@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import QRCode from 'react-qr-code';
-import { WifiOff, HeartPulse, User, Phone, MapPin, CheckCircle2 } from 'lucide-react';
+import { QrCode, HeartPulse, User, Phone, MapPin, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const translations = {
@@ -117,7 +117,7 @@ const OfflineSOS: React.FC<OfflineSOSProps> = ({ language = 'en', isCollapsed = 
             <DialogTrigger asChild>
               <button className={`flex items-center w-full rounded-xl bg-red-50 hover:bg-red-100/80 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-semibold transition-all border border-red-100 dark:border-red-500/20 shadow-sm active:scale-95 group ${isCollapsed ? 'p-2 justify-center h-10' : 'p-3 gap-3'}`}>
                 <div className="h-6 w-6 rounded-lg bg-transparent flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <WifiOff className="h-4 w-4" />
+                  <QrCode className="h-4 w-4" />
                 </div>
                 {!isCollapsed && (
                   <div className="text-left flex-1">
@@ -139,7 +139,7 @@ const OfflineSOS: React.FC<OfflineSOSProps> = ({ language = 'en', isCollapsed = 
       <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl text-red-600">
-            <WifiOff className="h-5 w-5" /> {t.title}
+            <QrCode className="h-5 w-5" /> {t.title}
           </DialogTitle>
           <p className="text-sm text-muted-foreground">{t.desc}</p>
         </DialogHeader>
