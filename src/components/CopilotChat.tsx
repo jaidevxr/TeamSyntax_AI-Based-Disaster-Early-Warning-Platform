@@ -433,10 +433,15 @@ Rules:
           ]},
         ];
         try {
-          const response = await fetch('/api/chat', {
+          const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+          if (!groqKey) throw new Error('No Groq API key');
+          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: 'llama-4-scout-17b-16e-instruct', messages: visionMessages }),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${groqKey}`,
+            },
+            body: JSON.stringify({ model: 'meta-llama/llama-4-scout-17b-16e-instruct', messages: visionMessages }),
           });
           if (!response.ok) throw new Error('Vision API failed');
           aiText = (await response.json()).choices[0].message.content;

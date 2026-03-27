@@ -85,19 +85,28 @@ const OfflineSOS: React.FC<OfflineSOSProps> = ({ language = 'en', isCollapsed = 
   }, [isOpen]);
 
   const handleGenerate = () => {
-    // Compress data to keep QR code density manageable
-    const payload = {
+    // Build human-readable text for QR scanning
+    const lines = [
+      `🆘 EMERGENCY SOS PROFILE`,
+      `Name: ${formData.name}`,
+      `Blood Type: ${formData.bloodType || 'Unknown'}`,
+      `Emergency Contact: ${formData.emergencyContact || 'N/A'}`,
+      `Medical Info: ${formData.medicalInfo || 'None'}`,
+      location ? `GPS: ${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}` : '',
+      location ? `Maps: https://maps.google.com/?q=${location.lat.toFixed(5)},${location.lng.toFixed(5)}` : '',
+      `Generated: ${new Date().toLocaleString()}`,
+    ].filter(Boolean).join('\n');
+
+    // Also save structured data to localStorage for reload
+    localStorage.setItem('offlineSOS_profile', JSON.stringify({
       n: formData.name,
       b: formData.bloodType,
       m: formData.medicalInfo,
       c: formData.emergencyContact,
       l: location ? `${location.lat.toFixed(5)},${location.lng.toFixed(5)}` : null,
       t: Date.now()
-    };
-    
-    const jsonStr = JSON.stringify(payload);
-    localStorage.setItem('offlineSOS_profile', jsonStr);
-    setQrData(jsonStr);
+    }));
+    setQrData(lines);
   };
 
   return (
