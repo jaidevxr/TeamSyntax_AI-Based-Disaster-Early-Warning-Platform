@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { EmergencyService, Location } from '@/types';
+import { EmergencyService, Location, DisasterEvent } from '@/types';
 import { escapeHtml } from '@/utils/sanitize';
 
 import { createOfflineTileLayer } from '@/utils/offlineTileLayer';
@@ -10,15 +10,16 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Hospital, Shield, Flame, Navigation, X, MapPin } from 'lucide-react';
+import { Loader2, Hospital, Shield, Flame, Navigation, X, MapPin, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface EmergencyServicesMapProps {
   onFacilityClick?: (facility: EmergencyService) => void;
   userLocation?: Location | null;
+  disasters?: DisasterEvent[];
 }
 
-const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityClick, userLocation: dashboardLocation }) => {
+const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityClick, userLocation: dashboardLocation, disasters = [] }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
@@ -38,6 +39,17 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
   const { toast } = useToast();
+  const [dangerZoneWarning, setDangerZoneWarning] = useState<{ disasterTitle: string; distance: number } | null>(null);
+  const dangerCirclesRef = useRef<L.Circle[]>([]);
+
+  // Haversine distance (km) between two points
+  const haversineDist = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -244,6 +256,25 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
           title: "Route Ready",
           description: `${distKm} km · ~${durationMin} min to ${service.name}`,
         });
+
+        // Danger Zone Check: scan route points against known disasters
+        setDangerZoneWarning(null);
+        if (disasters.length > 0) {
+          // Sample every 5th point to keep it fast
+          for (let i = 0; i < latlngs.length; i += 5) {
+            const [ptLat, ptLng] = latlngs[i];
+            for (const disaster of disasters) {
+              const dist = haversineDist(ptLat, ptLng, disaster.location.lat, disaster.location.lng);
+              if (dist < 10) {
+                // Route crosses within 10km of a disaster
+                polyline.setStyle({ color: '#ef4444', weight: 6, dashArray: '10 6' });
+                setDangerZoneWarning({ disasterTitle: disaster.title, distance: Math.round(dist) });
+                break;
+              }
+            }
+            if (dangerZoneWarning) break;
+          }
+        }
       } else {
         throw new Error('No route found');
       }
@@ -266,6 +297,10 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
     }
     setSelectedService(null);
     setShowingRoute(false);
+    setDangerZoneWarning(null);
+    // Also clear danger zone circles
+    dangerCirclesRef.current.forEach(c => c.remove());
+    dangerCirclesRef.current = [];
   };
 
   // Listen for external routing requests (e.g., from Saarthi AI)
@@ -698,6 +733,15 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
             </Button>
           </div>
           <p className="text-[9px] md:text-xs text-primary-foreground/70 font-medium mt-0.5">Follow the route on the map</p>
+          {dangerZoneWarning && (
+            <div className="mt-2 p-2 bg-red-600/90 rounded-lg flex items-center gap-2 animate-in slide-in-from-top-2 border border-red-300/30">
+              <AlertTriangle className="h-4 w-4 text-white flex-shrink-0 animate-pulse" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] md:text-xs font-bold text-white">⚠️ Danger Zone Detected</p>
+                <p className="text-[9px] md:text-[10px] text-red-100 truncate">Route passes ~{dangerZoneWarning.distance}km from: {dangerZoneWarning.disasterTitle}</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

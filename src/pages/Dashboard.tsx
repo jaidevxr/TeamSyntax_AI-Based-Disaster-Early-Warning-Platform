@@ -13,6 +13,7 @@ import VolunteerHub from '@/components/VolunteerHub';
 import EmergencyServicesMap from '@/components/EmergencyServicesMap';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import DisasterImageAnalyzer from '@/components/DisasterImageAnalyzer';
+import RiskForecaster from '@/components/RiskForecaster';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -387,6 +388,9 @@ const Dashboard: React.FC = () => {
                 </Collapsible>
               </div>
             </div>
+            <div className="mb-6">
+              <RiskForecaster userLocation={userLocation} language={language} />
+            </div>
             <EarlyAlerts userLocation={userLocation} language={language} />
           </div>
         );
@@ -418,7 +422,7 @@ const Dashboard: React.FC = () => {
       case 'emergency-services':
         return (
           <div className="h-full pb-14 md:pb-0">
-            <EmergencyServicesMap onFacilityClick={handleFacilityClick} userLocation={userLocation} />
+            <EmergencyServicesMap onFacilityClick={handleFacilityClick} userLocation={userLocation} disasters={disasters} />
           </div>
         );
 

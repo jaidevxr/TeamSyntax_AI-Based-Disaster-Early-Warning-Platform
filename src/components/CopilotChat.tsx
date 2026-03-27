@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, Loader2, Navigation, Mic, MicOff, MessageSquare, Volume2, Globe, ChevronRight, ArrowRight } from 'lucide-react';
+import { Send, Loader2, Navigation, Mic, MicOff, MessageSquare, Volume2, Globe, ChevronRight, ArrowRight, Paperclip, ImageIcon, X } from 'lucide-react';
 import { useSaarthiPulse } from '@/hooks/useSaarthiPulse';
 import type { Location } from '@/types';
 
@@ -129,7 +129,7 @@ const NatureElement = ({ state }: { state: 'idle' | 'listening' | 'speaking' | '
   );
 };
 
-interface Message { role: 'user' | 'assistant'; content: string; }
+interface Message { role: 'user' | 'assistant'; content: string; imageUrl?: string; }
 interface CopilotChatProps { userLocation: Location | null; facilities?: any[]; }
 
 const LANGUAGES = [
@@ -154,6 +154,8 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachedImage, setAttachedImage] = useState<{ base64: string; preview: string } | null>(null);
   const { toast } = useToast();
   const { pulse, clearInterjection } = useSaarthiPulse(userLocation);
 
@@ -378,12 +380,31 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
     });
   };
 
+  const handleImageAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image too large', description: 'Please use an image under 5MB.', variant: 'destructive' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = (ev.target?.result as string);
+      setAttachedImage({ base64, preview: URL.createObjectURL(file) });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // reset input
+  };
+
   const handleSend = async (overrideInput?: string) => {
     const activeInput = overrideInput || input;
-    if (!activeInput.trim() || loading) return;
-    const userMsg: Message = { role: 'user', content: activeInput };
+    if ((!activeInput.trim() && !attachedImage) || loading) return;
+    
+    const currentImage = attachedImage;
+    const userMsg: Message = { role: 'user', content: activeInput || (currentImage ? '📷 Analyze this image' : ''), imageUrl: currentImage?.preview };
     setMessages(prev => [...prev, userMsg]);
     if (!overrideInput) setInput('');
+    setAttachedImage(null);
     setLoading(true);
 
     const langLabel = LANGUAGES.find(l => l.code === language)?.label || 'English';
@@ -399,23 +420,49 @@ Rules:
 - DO NOT include hospital tokens for general safety questions like "what to do in an earthquake" unless they mention being hurt.
 - User location: ${locationName || 'India'}.`;
     try {
-      const groqMessages = [
-        { role: 'system', content: systemPrompt },
-        ...[...messages, userMsg].slice(-10).map(m => ({ role: m.role, content: m.content })),
-      ];
       let aiText = '';
-      try {
-        const { data, error } = await supabase.functions.invoke('v1-copilot-chat', { body: { messages: groqMessages } });
-        if (error) throw error;
-        aiText = data.message;
-      } catch {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: groqMessages }),
-        });
-        aiText = (await response.json()).choices[0].message.content;
+
+      if (currentImage) {
+        // Vision model path — send image to Llama Vision
+        const visionSystemPrompt = systemPrompt + '\n- You are analyzing a disaster-related image. Assess damage severity, identify hazards, and provide actionable safety advice.';
+        const visionMessages = [
+          { role: 'system', content: visionSystemPrompt },
+          { role: 'user', content: [
+            { type: 'text', text: activeInput || 'Analyze this disaster image. What damage do you see? What should I do?' },
+            { type: 'image_url', image_url: { url: currentImage.base64 } },
+          ]},
+        ];
+        try {
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'llama-4-scout-17b-16e-instruct', messages: visionMessages }),
+          });
+          if (!response.ok) throw new Error('Vision API failed');
+          aiText = (await response.json()).choices[0].message.content;
+        } catch {
+          aiText = 'I could not analyze the image right now. Please try again or describe the situation in text.';
+        }
+      } else {
+        // Standard text path
+        const groqMessages = [
+          { role: 'system', content: systemPrompt },
+          ...[...messages, userMsg].slice(-10).map(m => ({ role: m.role, content: m.content })),
+        ];
+        try {
+          const { data, error } = await supabase.functions.invoke('v1-copilot-chat', { body: { messages: groqMessages } });
+          if (error) throw error;
+          aiText = data.message;
+        } catch {
+          const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: groqMessages }),
+          });
+          aiText = (await response.json()).choices[0].message.content;
+        }
       }
+
       setMessages(prev => [...prev, { role: 'assistant', content: aiText }]);
       if (mode === 'voice') speakText(aiText);
     } catch {
@@ -602,6 +649,9 @@ Rules:
             <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
               {msg.role === 'user' ? (
                 <div className="max-w-[80%] bg-white/80 backdrop-blur-sm border border-white/90 rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
+                  {msg.imageUrl && (
+                    <img src={msg.imageUrl} alt="Attached" className="rounded-xl mb-2 max-h-40 object-cover border border-white/50" />
+                  )}
                   <p className="text-sm text-slate-700 font-medium">{msg.content}</p>
                 </div>
               ) : (
@@ -671,12 +721,25 @@ Rules:
 
       {/* Input */}
       <div className="px-4 pb-5 pt-3 flex-shrink-0">
+        {/* Image Preview */}
+        {attachedImage && (
+          <div className="mb-2 relative inline-block">
+            <img src={attachedImage.preview} alt="Preview" className="h-16 rounded-xl border border-sky-200 shadow-sm" />
+            <button onClick={() => setAttachedImage(null)} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-colors">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-2 bg-white/60 backdrop-blur-md border border-white/90 rounded-2xl px-4 py-3 shadow-sm">
+          <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageAttach} />
+          <button onClick={() => fileInputRef.current?.click()} className="p-1.5 rounded-lg text-slate-300 hover:text-violet-500 transition-colors" title="Attach image">
+            <Paperclip className="w-4 h-4" />
+          </button>
           <input
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder={`Ask Saarthi${locationName ? ` about ${locationName}` : ''}...`}
+            placeholder={attachedImage ? 'Ask about this image...' : `Ask Saarthi${locationName ? ` about ${locationName}` : ''}...`}
             className="flex-1 bg-transparent text-sm text-slate-600 placeholder:text-slate-400 focus:outline-none font-medium"
             disabled={loading}
           />
@@ -684,7 +747,7 @@ Rules:
             className={`p-1.5 rounded-lg transition-colors ${isListening ? 'text-red-400' : 'text-slate-300 hover:text-sky-400'}`}>
             {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </button>
-          <button onClick={() => handleSend()} disabled={loading || !input.trim()}
+          <button onClick={() => handleSend()} disabled={loading || (!input.trim() && !attachedImage)}
             className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-xl bg-sky-400 hover:bg-sky-500 active:scale-95 text-white transition-all disabled:opacity-30 shadow-md shadow-sky-100">
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
           </button>
