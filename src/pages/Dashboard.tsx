@@ -12,6 +12,7 @@ import HeatmapOverview from '@/components/HeatmapOverview';
 import VolunteerHub from '@/components/VolunteerHub';
 import EmergencyServicesMap from '@/components/EmergencyServicesMap';
 import OfflineIndicator from '@/components/OfflineIndicator';
+import DisasterImageAnalyzer from '@/components/DisasterImageAnalyzer';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -432,6 +433,13 @@ const Dashboard: React.FC = () => {
         return (
           <div className="h-full pb-14 md:pb-0">
             <CopilotChat userLocation={userLocation} facilities={facilities} />
+          </div>
+        );
+
+      case 'image-analyzer':
+        return (
+          <div className="h-full pb-14 md:pb-0">
+            <DisasterImageAnalyzer />
           </div>
         );
 

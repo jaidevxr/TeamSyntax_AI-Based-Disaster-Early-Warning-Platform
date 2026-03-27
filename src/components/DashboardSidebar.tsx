@@ -4,6 +4,7 @@ import {
   Cloud,
   AlertTriangle,
   Bot,
+  Camera,
   Menu,
   X,
   Hospital,
@@ -69,6 +70,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       safetyGuide: 'Safety Guide',
       volunteerHub: 'Volunteer Hub',
       aiInsights: 'AI Copilot',
+      imageAnalyzer: 'Image Analyzer',
       alertHistory: 'Alert History',
     },
     hi: {
@@ -80,6 +82,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       safetyGuide: 'सुरक्षा मार्गदर्शिका',
       volunteerHub: 'स्वयंसेवक हब',
       aiInsights: 'AI कोपायलट',
+      imageAnalyzer: 'छवि विश्लेषक',
       alertHistory: 'अलर्ट इतिहास',
     }
   };
@@ -140,6 +143,13 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       icon: Bot,
       gradient: 'from-primary via-emerald-600 to-teal-500',
       description: 'Smart assistance'
+    },
+    {
+      id: 'image-analyzer',
+      label: labels[language].imageAnalyzer,
+      icon: Camera,
+      gradient: 'from-violet-500 to-fuchsia-600',
+      description: 'AI damage assessment'
     },
     {
       id: 'alert-history',

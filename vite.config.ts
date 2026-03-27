@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => ({
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+      },
+      '/hf-api': {
+        target: 'https://router.huggingface.co',
+        changeOrigin: true,
+        rewrite: (path: string) => path.replace(/^\/hf-api/, ''),
       }
     }
   },
