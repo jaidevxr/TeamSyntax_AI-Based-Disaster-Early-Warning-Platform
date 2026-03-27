@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/tooltip';
 import { EmergencyFacility, Location } from '@/types';
 import { fetchEmergencyFacilities, getCurrentLocation } from '@/utils/api';
+import OfflineSOS from '@/components/OfflineSOS';
 
 interface DashboardSidebarProps {
   activeTab: string;
@@ -349,6 +350,11 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-border/20 bg-gradient-to-r from-transparent to-primary/5 backdrop-blur-sm space-y-3">
+          {/* Offline SOS */}
+          <div className="w-full">
+            <OfflineSOS language={language} isCollapsed={isCollapsed} />
+          </div>
+
           {/* Offline Indicator */}
           {children}
 
