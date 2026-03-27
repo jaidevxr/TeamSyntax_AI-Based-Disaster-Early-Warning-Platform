@@ -240,19 +240,19 @@ Assessment rules:
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
-          <div className="h-10 w-10 rounded-xl bg-[#2d5a27]/10 flex items-center justify-center border border-[#2d5a27]/20">
-            <Camera className="h-5 w-5 text-[#2d5a27]" />
+          <div className="h-10 w-10 rounded-xl bg-[#2d5a27]/10 dark:bg-[#c8d8b8]/10 flex items-center justify-center border border-[#2d5a27]/20 dark:border-[#c8d8b8]/20">
+            <Camera className="h-5 w-5 text-[#2d5a27] dark:text-[#c8d8b8]" />
           </div>
           <div>
-            <h2 className="text-lg font-bold tracking-tight text-[#2d5a27]">Disaster Image Analyzer</h2>
-            <p className="text-xs text-[#5a6b4f]">AI-powered damage assessment via Llama Vision + HF</p>
+            <h2 className="text-lg font-bold tracking-tight text-[#2d5a27] dark:text-[#c8d8b8]">Disaster Image Analyzer</h2>
+            <p className="text-xs text-[#5a6b4f] dark:text-[#aab3a3]">AI-powered damage assessment via Llama Vision + HF</p>
           </div>
         </div>
         <div className="flex items-center gap-2 mt-2">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#2d5a27]/8 text-[#2d5a27] text-[10px] font-semibold rounded-full border border-[#2d5a27]/15">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#2d5a27]/8 dark:bg-[#c8d8b8]/10 text-[#2d5a27] dark:text-[#c8d8b8] text-[10px] font-semibold rounded-full border border-[#2d5a27]/15 dark:border-[#c8d8b8]/20">
             🦙 Llama 4 Scout Vision
           </span>
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#8b7355]/8 text-[#8b7355] text-[10px] font-semibold rounded-full border border-[#8b7355]/15">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#8b7355]/8 dark:bg-[#d4c5b0]/10 text-[#8b7355] dark:text-[#d4c5b0] text-[10px] font-semibold rounded-full border border-[#8b7355]/15 dark:border-[#d4c5b0]/20">
             🤗 HF ViT Classification
           </span>
         </div>
@@ -266,8 +266,8 @@ Assessment rules:
           onDrop={handleDrop}
           className={`relative border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center transition-all duration-300 cursor-pointer group ${
             dragOver
-              ? 'border-[#2d5a27] bg-[#2d5a27]/5 scale-[1.01]'
-              : 'border-[#c4b99a]/60 hover:border-[#2d5a27]/40 hover:bg-[#f5f0e8]/50'
+              ? 'border-[#2d5a27] dark:border-[#c8d8b8] bg-[#2d5a27]/5 dark:bg-[#c8d8b8]/10 scale-[1.01]'
+              : 'border-[#c4b99a]/60 dark:border-[#5a6b4f]/40 hover:border-[#2d5a27]/40 dark:hover:border-[#c8d8b8]/40 hover:bg-[#f5f0e8]/50 dark:hover:bg-[#c8d8b8]/5'
           }`}
           onClick={() => fileInputRef.current?.click()}
         >
@@ -288,8 +288,8 @@ Assessment rules:
           />
 
           <div className="flex flex-col items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#2d5a27]/8 flex items-center justify-center border border-[#2d5a27]/15 group-hover:scale-105 transition-transform duration-300">
-              <ImageIcon className="w-7 h-7 text-[#2d5a27]/70" />
+            <div className="w-14 h-14 rounded-2xl bg-[#2d5a27]/8 dark:bg-[#c8d8b8]/10 flex items-center justify-center border border-[#2d5a27]/15 dark:border-[#c8d8b8]/20 group-hover:scale-105 transition-transform duration-300">
+              <ImageIcon className="w-7 h-7 text-[#2d5a27]/70 dark:text-[#c8d8b8]/70" />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground mb-1">Upload disaster image</p>
@@ -300,13 +300,13 @@ Assessment rules:
           <div className="flex items-center justify-center gap-3 mt-6">
             <button
               onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white/70 dark:bg-white/10 border border-[#c4b99a]/40 rounded-xl text-xs font-semibold text-foreground hover:bg-white dark:hover:bg-white/15 transition-all active:scale-95"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white/70 dark:bg-white/10 border border-[#c4b99a]/40 dark:border-[#5a6b4f]/40 rounded-xl text-xs font-semibold text-foreground hover:bg-white dark:hover:bg-white/20 transition-all active:scale-95"
             >
               <Upload className="w-4 h-4" /> Gallery
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); cameraInputRef.current?.click(); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#2d5a27] rounded-xl text-xs font-semibold text-white hover:bg-[#3a6b33] transition-all active:scale-95"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#2d5a27] dark:bg-[#4a7e44] rounded-xl text-xs font-semibold text-white hover:bg-[#3a6b33] dark:hover:bg-[#5a8b54] transition-all active:scale-95"
             >
               <Camera className="w-4 h-4" /> Camera
             </button>
@@ -341,7 +341,7 @@ Assessment rules:
           {!report && !analyzing && (
             <button
               onClick={analyzeImage}
-              className="w-full py-3.5 bg-[#2d5a27] rounded-xl text-white font-semibold text-sm hover:bg-[#3a6b33] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-[#2d5a27] dark:bg-[#4a7e44] rounded-xl text-white font-semibold text-sm hover:bg-[#3a6b33] dark:hover:bg-[#5a8b54] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
               <Zap className="w-4 h-4" /> Analyze Damage
             </button>
@@ -373,8 +373,8 @@ Assessment rules:
               </div>
 
               {/* Summary */}
-              <div className="p-4 rounded-2xl bg-[#f5f0e8]/50 dark:bg-card/50 border border-[#c4b99a]/20">
-                <h4 className="text-xs font-semibold text-[#5a6b4f] uppercase tracking-wider mb-2">AI Assessment</h4>
+              <div className="p-4 rounded-2xl bg-[#f5f0e8]/50 dark:bg-card/50 border border-[#c4b99a]/20 dark:border-white/10">
+                <h4 className="text-xs font-semibold text-[#5a6b4f] dark:text-[#aab3a3] uppercase tracking-wider mb-2">AI Assessment</h4>
                 <p className="text-sm text-foreground leading-relaxed">
                   {report.summary.split('**').map((part, i) =>
                     i % 2 === 1 ? <strong key={i} className={sev.text}>{part}</strong> : part
@@ -383,8 +383,8 @@ Assessment rules:
               </div>
 
               {/* Recommendations */}
-              <div className="p-4 rounded-2xl bg-[#f5f0e8]/50 dark:bg-card/50 border border-[#c4b99a]/20">
-                <h4 className="text-xs font-semibold text-[#5a6b4f] uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <div className="p-4 rounded-2xl bg-[#f5f0e8]/50 dark:bg-card/50 border border-[#c4b99a]/20 dark:border-white/10">
+                <h4 className="text-xs font-semibold text-[#5a6b4f] dark:text-[#aab3a3] uppercase tracking-wider mb-3 flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5" /> Recommended Actions
                 </h4>
                 <ul className="space-y-2">
@@ -398,10 +398,10 @@ Assessment rules:
               </div>
 
               {/* Detailed Scores */}
-              <div className="rounded-2xl bg-[#f5f0e8]/50 dark:bg-card/50 border border-[#c4b99a]/20 overflow-hidden">
+              <div className="rounded-2xl bg-[#f5f0e8]/50 dark:bg-card/50 border border-[#c4b99a]/20 dark:border-white/10 overflow-hidden">
                 <button
                   onClick={() => setShowDetails(!showDetails)}
-                  className="w-full p-4 flex items-center justify-between text-xs font-semibold text-[#5a6b4f] uppercase tracking-wider hover:bg-[#2d5a27]/5 transition-colors"
+                  className="w-full p-4 flex items-center justify-between text-xs font-semibold text-[#5a6b4f] dark:text-[#aab3a3] uppercase tracking-wider hover:bg-[#2d5a27]/5 dark:hover:bg-white/5 transition-colors"
                 >
                   <span>Classification Details ({report.categories.length})</span>
                   {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -414,7 +414,7 @@ Assessment rules:
                           <span className="text-xs text-foreground truncate pr-2">{cat.label}</span>
                           <span className="text-xs font-semibold text-muted-foreground shrink-0">{Math.round(cat.score * 100)}%</span>
                         </div>
-                        <div className="w-full bg-[#2d5a27]/8 rounded-full h-1.5">
+                        <div className="w-full bg-[#2d5a27]/8 dark:bg-white/5 rounded-full h-1.5">
                           <div
                             className={`h-full rounded-full transition-all duration-700 ${i === 0 ? `bg-gradient-to-r ${sev.color}` : 'bg-[#8b7355]/30'}`}
                             style={{ width: `${cat.score * 100}%` }}
@@ -439,10 +439,10 @@ Assessment rules:
       )}
 
       {/* Info Footer */}
-      <div className="mt-6 p-3 rounded-xl bg-[#f5f0e8]/40 dark:bg-card/30 border border-[#c4b99a]/15">
+      <div className="mt-6 p-3 rounded-xl bg-[#f5f0e8]/40 dark:bg-[#d4c5b0]/5 border border-[#c4b99a]/15 dark:border-[#d4c5b0]/15">
         <div className="flex items-start gap-2">
-          <Shield className="w-4 h-4 text-[#8b7355] mt-0.5 shrink-0" />
-          <p className="text-[10px] text-[#8b7355] leading-relaxed">
+          <Shield className="w-4 h-4 text-[#8b7355] dark:text-[#d4c5b0] mt-0.5 shrink-0" />
+          <p className="text-[10px] text-[#8b7355] dark:text-[#d4c5b0] leading-relaxed">
             <strong>Powered by Llama 4 Scout Vision</strong> + Hugging Face ViT. AI vision model analyzes your image directly to assess disaster damage. Images are processed via API and not stored. For emergencies, call <strong>112</strong>.
           </p>
         </div>
