@@ -552,6 +552,7 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
         // Phase 1: Fetch weather in small chunks — CURRENT data ONLY (no hourly/forecast to minimize payload)
         const METEO_CHUNK = 25;
         let meteoData: any[] = new Array(cities.length).fill(null);
+        let aqiData: any[] = new Array(cities.length).fill(null);
 
         for (let c = 0; c < cities.length; c += METEO_CHUNK) {
           if (signal.aborted) break;
@@ -559,16 +560,23 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
           const chunkLats = chunk.map(ci => ci.lat).join(',');
           const chunkLngs = chunk.map(ci => ci.lng).join(',');
           try {
-            const wRes = await fetchWithRetry(
-              `https://api.open-meteo.com/v1/forecast?latitude=${chunkLats}&longitude=${chunkLngs}&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m&timezone=auto`,
-              { signal },
-              3
-            );
-            if (wRes.ok) {
+            const [wRes, aRes] = await Promise.all([
+              fetchWithRetry(`https://api.open-meteo.com/v1/forecast?latitude=${chunkLats}&longitude=${chunkLngs}&current=temperature_2m,relative_humidity_2m,precipitation,surface_pressure,wind_speed_10m&timezone=auto`, { signal }, 3),
+              fetchWithRetry(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${chunkLats}&longitude=${chunkLngs}&current=us_aqi&timezone=auto`, { signal }, 3).catch(() => null)
+            ]);
+
+            if (wRes && wRes.ok) {
               const d = await wRes.json();
               const arr = Array.isArray(d) ? d : [d];
               arr.forEach((item: any, idx: number) => {
                 meteoData[c + idx] = item;
+              });
+            }
+            if (aRes && aRes.ok) {
+              const d = await aRes.json();
+              const arr = Array.isArray(d) ? d : [d];
+              arr.forEach((item: any, idx: number) => {
+                aqiData[c + idx] = item;
               });
             }
           } catch (e) {
@@ -636,18 +644,11 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
                   }
                 }
 
-                // Fetch AQI
+                // Get AQI from the bulk Open-Meteo response instead of 50 individual WAQI API calls
                 let aqi: number | null = null;
-                try {
-                  const aqiRes = await fetch(
-                    `https://api.waqi.info/feed/geo:${lat};${lng}/?token=${import.meta.env.VITE_WAQI_TOKEN}`,
-                    { signal }
-                  );
-                  if (aqiRes.ok) {
-                    const d = await aqiRes.json();
-                    if (d.status === 'ok' && d.data?.aqi) aqi = d.data.aqi;
-                  }
-                } catch { /* AQI fetch failed */ }
+                if (aqiData[cityIndex]?.current?.us_aqi != null) {
+                  aqi = aqiData[cityIndex].current.us_aqi;
+                }
 
                 if (temp !== null) {
                   dataMap.set(`${lat},${lng}`, { temp, aqi: aqi || 75, floodRisk, floodFactors });
