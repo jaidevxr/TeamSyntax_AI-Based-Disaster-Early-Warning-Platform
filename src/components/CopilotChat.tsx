@@ -209,26 +209,43 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
         console.log(`🎙 Speech ended: ${e.error}`);
         return;
       }
-      console.error("Speech recognition error:", e.error);
+      
+      const currentFullText = transcriptRef.current.trim();
       setIsListening(false);
       isListeningRef.current = false;
       setInterimText('');
+
       if (e.error === 'not-allowed' || e.error === 'permission-denied') {
-        toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings.", variant: "destructive" });
+        if (currentFullText.length > 0) {
+          // If we already heard something but the browser blocked the auto-restart due to missing user gesture,
+          // just gracefully send what we have instead of showing an error.
+          handleSend(currentFullText);
+          transcriptRef.current = '';
+          accumulatedRef.current = '';
+        } else {
+          toast({ title: "Microphone blocked", description: "Please allow mic access. (Note: in-app browsers like Instagram/Discord often block microphones).", variant: "destructive" });
+        }
       } else if (e.error === 'network') {
         toast({ title: "Network error", description: "Speech recognition requires an internet connection.", variant: "destructive" });
       } else {
-        toast({ title: "Voice error", description: `Could not listen: ${e.error}`, variant: "destructive" });
+        toast({ title: "Voice stopped", description: "The browser stopped listening. Tap the mic to try again.", variant: "default" });
       }
     };
 
     rec.onend = () => {
       if (isListeningRef.current) {
-        // Save current transcript before restart (results will reset)
         accumulatedRef.current = transcriptRef.current;
-        try { rec.start(); } catch {
+        try { 
+          rec.start(); 
+        } catch (err) {
           setIsListening(false);
           isListeningRef.current = false;
+          // If browser completely denies the restart synchronously
+          if (transcriptRef.current.trim()) {
+            handleSend(transcriptRef.current.trim());
+            transcriptRef.current = '';
+            accumulatedRef.current = '';
+          }
         }
       }
     };
