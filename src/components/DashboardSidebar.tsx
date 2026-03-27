@@ -73,7 +73,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       volunteerHub: 'Volunteer Hub',
       aiInsights: 'AI Copilot',
       imageAnalyzer: 'Image Analyzer',
-      communityReports: 'Community SOS',
       alertHistory: 'Alert History',
     },
     hi: {
@@ -86,7 +85,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       volunteerHub: 'स्वयंसेवक हब',
       aiInsights: 'AI कोपायलट',
       imageAnalyzer: 'छवि विश्लेषक',
-      communityReports: 'समुदाय SOS',
       alertHistory: 'अलर्ट इतिहास',
     }
   };
@@ -154,13 +152,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
       icon: Camera,
       gradient: 'from-violet-500 to-fuchsia-600',
       description: 'AI damage assessment'
-    },
-    {
-      id: 'community-reports',
-      label: labels[language].communityReports,
-      icon: Megaphone,
-      gradient: 'from-orange-500 to-red-600',
-      description: 'Ground-level reports'
     },
     {
       id: 'alert-history',
