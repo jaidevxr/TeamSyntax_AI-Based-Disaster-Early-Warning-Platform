@@ -178,6 +178,27 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
   const [interimText, setInterimText] = useState('');
   const transcriptRef = useRef('');
   const accumulatedRef = useRef('');
+  const interimRef = useRef('');
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopAndSend = () => {
+    if (!isListeningRef.current) return;
+    try { recognitionRef.current?.stop(); } catch(e) {}
+    if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+    
+    setIsListening(false);
+    isListeningRef.current = false;
+    const fullText = (transcriptRef.current + ' ' + interimRef.current).trim();
+    
+    setInterimText('');
+    interimRef.current = '';
+    transcriptRef.current = '';
+    accumulatedRef.current = '';
+    
+    if (fullText) {
+      handleSend(fullText);
+    }
+  };
 
   const initRecognition = () => {
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -189,6 +210,8 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
     rec.lang = LANGUAGES.find(l => l.code === language)?.voice || 'en-IN';
 
     rec.onresult = (e: any) => {
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+
       let sessionFinal = '';
       let interim = '';
       for (let i = 0; i < e.results.length; i++) {
@@ -199,9 +222,19 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
           interim += t;
         }
       }
+      
       // Full transcript = accumulated from previous restarts + current session finals
       transcriptRef.current = (accumulatedRef.current + ' ' + sessionFinal).trim();
+      interimRef.current = interim;
       setInterimText(interim);
+
+      // Auto-send after 1.5 seconds of silence
+      const currentFullText = (transcriptRef.current + ' ' + interim).trim();
+      if (currentFullText.length > 0) {
+        silenceTimeoutRef.current = setTimeout(() => {
+          stopAndSend();
+        }, 1500);
+      }
     };
 
     rec.onerror = (e: any) => {
@@ -210,10 +243,13 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
         return;
       }
       
-      const currentFullText = transcriptRef.current.trim();
+      const currentFullText = (transcriptRef.current + ' ' + interimRef.current).trim();
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+      
       setIsListening(false);
       isListeningRef.current = false;
       setInterimText('');
+      interimRef.current = '';
 
       if (e.error === 'not-allowed' || e.error === 'permission-denied') {
         if (currentFullText.length > 0) {
@@ -260,22 +296,16 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
       return;
     }
     if (isListening) {
-      // STOP listening — send accumulated transcript
-      try { recognitionRef.current?.stop(); } catch(e) {}
-      setIsListening(false);
-      isListeningRef.current = false;
-      const fullText = (transcriptRef.current + ' ' + interimText).trim();
-      setInterimText('');
-      transcriptRef.current = '';
-      accumulatedRef.current = '';
-      if (fullText) {
-        handleSend(fullText);
-      }
+      // STOP listening manually
+      stopAndSend();
     } else {
       // START listening
       transcriptRef.current = '';
       accumulatedRef.current = '';
+      interimRef.current = '';
       setInterimText('');
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+      
       const rec = initRecognition();
       if (!rec) return;
       recognitionRef.current = rec;
@@ -479,8 +509,13 @@ Rules:
           <NatureElement state={voiceState} />
           <div className="text-center space-y-1 mt-2">
             <p className="text-base font-semibold text-slate-600">
-              {isListening ? '🎙 Listening... tap mic to send' : isSpeaking ? '🔊 Speaking...' : loading ? '💭 Thinking...' : 'Tap mic to speak'}
+              {isListening ? '🎙 Listening...' : isSpeaking ? '🔊 Speaking...' : loading ? '💭 Thinking...' : 'Tap mic to speak'}
             </p>
+            {isListening && (
+              <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wider">
+                Speak now • Auto-sends when you pause
+              </p>
+            )}
             {isListening && (transcriptRef.current || interimText) && (
               <p className="text-sm text-slate-500 max-w-[280px] text-center leading-relaxed px-2">
                 {transcriptRef.current}{interimText && <span className="text-slate-400 italic">{' '}{interimText}</span>}
