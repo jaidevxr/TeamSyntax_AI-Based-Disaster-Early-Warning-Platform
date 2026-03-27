@@ -295,6 +295,13 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
       toast({ title: "Voice unavailable", description: "Your browser doesn't support web speech recognition. Try Chrome or Edge.", variant: "destructive" });
       return;
     }
+
+    // INTERRUPT: If AI is actively speaking, tapping the mic shuts it up immediately
+    if (isSpeaking) {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+
     if (isListening) {
       // STOP listening manually
       stopAndSend();
