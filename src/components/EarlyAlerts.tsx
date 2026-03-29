@@ -985,38 +985,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
         </div>
       )}
 
-      {/* ═══ GENERATIVE AI BRIEFING ═══ */}
-      {(generatingBrief || aiBrief) && !loading && (
-        <div className="relative p-5 apple-glass rounded-2xl overflow-hidden group shadow-none border border-emerald-500/10">
-          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent"></div>
 
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-              <Sparkles className={`h-4 w-4 text-emerald-600 ${generatingBrief ? "animate-spin" : "animate-pulse"}`} />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-black text-[10px] tracking-[0.2em] text-foreground uppercase">
-                ML Inference Intelligence
-              </h3>
-            </div>
-            {generatingBrief && (
-              <div className="text-[9px] font-bold text-emerald-600 uppercase animate-pulse">
-                Synthesizing...
-              </div>
-            )}
-          </div>
-
-          {!generatingBrief && (
-            <div className="mt-4 pt-4 border-t border-slate-200/50 dark:border-white/5 flex items-center justify-between">
-              <span className="text-[10px] text-indigo-500/40 font-mono tracking-widest uppercase">Protocol: Intel Directive 41</span>
-              <div className="flex gap-1.5">
-                <div className="h-1 w-4 bg-indigo-500/20 rounded-full"></div>
-                <div className="h-1 w-2 bg-indigo-500/10 rounded-full"></div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* No alerts - Clean line */}
       {
@@ -1032,7 +1001,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* Alert Cards */}
       {
-        alerts.map((alert) => {
+        alerts.filter((alert) => alert.severity !== "watch").map((alert) => {
           const config = getSeverityConfig(alert.severity);
           const isExpanded = expandedAlerts.has(alert.id);
 
