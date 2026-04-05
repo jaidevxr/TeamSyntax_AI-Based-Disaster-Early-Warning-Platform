@@ -528,7 +528,42 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
         </div>
       `;
 
-      const marker = L.marker([service.lat, service.lng])
+      const getMarkerColor = (type: string) => {
+        switch (type) {
+          case 'hospital': return '#ef4444'; // red
+          case 'police': return '#3b82f6'; // blue
+          case 'fire_station': return '#f97316'; // orange
+          case 'school': return '#eab308'; // yellow
+          case 'place_of_worship': return '#a855f7'; // purple
+          case 'community_centre': return '#14b8a6'; // teal
+          default: return '#64748b'; // slate
+        }
+      };
+      
+      const getEmoji = (type: string) => {
+        switch (type) {
+          case 'hospital': return '🏥';
+          case 'police': return '🚓';
+          case 'fire_station': return '🚒';
+          case 'school': return '🏫';
+          case 'place_of_worship': return '🕍';
+          case 'community_centre': return '⛺';
+          default: return '📍';
+        }
+      };
+
+      const customIcon = L.divIcon({
+        className: 'custom-service-marker',
+        html: `
+          <div style="background-color: ${getMarkerColor(service.type)}; width: 28px; height: 28px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; font-size: 14px;">
+            ${getEmoji(service.type)}
+          </div>
+        `,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+      });
+
+      const marker = L.marker([service.lat, service.lng], { icon: customIcon })
         .bindPopup(popupHtml, { closeButton: true, maxWidth: 200 })
         .addTo(mapInstanceRef.current!);
 
