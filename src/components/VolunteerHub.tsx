@@ -40,35 +40,7 @@ interface Resource {
 }
 
 const VolunteerHub: React.FC = () => {
-    const [resources, setResources] = useState<Resource[]>([
-        {
-            id: '1',
-            type: 'vehicle',
-            name: '4x4 Off-road Jeep',
-            location: 'Kochi, Kerala',
-            contact: '+91 98765 43210',
-            status: 'available',
-            description: 'Available for flood rescue and supply transport.'
-        },
-        {
-            id: '2',
-            type: 'medical',
-            name: 'Dr. Rahul Sharma (General Physician)',
-            location: 'Muvattupuzha',
-            contact: '+91 91234 56789',
-            status: 'available',
-            description: 'Volunteer doctor with basic medical kit.'
-        },
-        {
-            id: '3',
-            type: 'water',
-            name: '1000L Drinking Water Tanker',
-            location: 'Aluva Sector 4',
-            contact: '+91 88888 77777',
-            status: 'available',
-            description: 'Fresh drinking water for community use.'
-        }
-    ]);
+    const [resources, setResources] = useState<Resource[]>([]);
 
     const [showAddForm, setShowAddForm] = useState(false);
     const [showVolunteerDialog, setShowVolunteerDialog] = useState(false);
