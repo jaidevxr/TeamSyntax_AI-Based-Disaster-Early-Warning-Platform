@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Hospital, Shield, Flame, Navigation, X, MapPin, AlertTriangle, School, Church, Tent } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -610,7 +611,22 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
 
         <div className="space-y-2 flex-1 overflow-y-auto pb-4">
           <p className="font-semibold text-xs mb-1.5 sticky top-0 bg-card z-10 py-1">Nearby Services ({services.length})</p>
-          {loading && <div className="text-center py-4"><Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" /><p className="text-[10px] text-muted-foreground">Loading services...</p></div>}
+          {loading && (
+            <div className="space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Card key={i} className="p-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <Skeleton className="h-5 w-5 rounded mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <Skeleton className="h-3 w-3/4" />
+                      <Skeleton className="h-2.5 w-1/3" />
+                      <Skeleton className="h-7 w-full rounded-md mt-1" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
           {!loading && services.length === 0 && <div className="text-center py-4"><p className="text-[10px] text-muted-foreground">No services found</p></div>}
           {!loading && services.map((service) => (
             <Card key={service.id} className={`p-2.5 hover:bg-accent cursor-pointer transition-all ${selectedService?.id === service.id ? 'ring-2 ring-primary' : ''}`} onClick={() => mapInstanceRef.current?.setView([service.lat, service.lng], 15)}>
@@ -695,9 +711,20 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
         {/* Mobile Loading State */}
         {loading && (
           <div className="pointer-events-auto flex items-center justify-center py-2">
-            <div className="glass-strong bg-background/90 backdrop-blur-xl rounded-full px-4 py-2 shadow-lg border border-white/20 flex items-center gap-2">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-              <span className="text-xs font-semibold">Finding services...</span>
+            <div className="glass-strong bg-background/90 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-lg border border-white/20 w-[90%] max-w-xs space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                <span className="text-xs font-semibold">Finding services...</span>
+              </div>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Skeleton className="h-4 w-4 rounded flex-shrink-0" />
+                  <div className="flex-1 space-y-1">
+                    <Skeleton className="h-2.5 w-3/4" />
+                    <Skeleton className="h-2 w-1/2" />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { WeatherData, WeatherAlert, Location } from '@/types';
 import { searchLocation } from '@/utils/api';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
@@ -83,16 +84,73 @@ const WeatherWidget: React.FC<WeatherWidgetProps> = ({ weather, loading, onLocat
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="bg-sky-50/50 dark:bg-slate-900/50 border-2 border-sky-100 dark:border-slate-800 p-6 animate-pulse">
-            <div className="h-8 bg-muted/20 rounded mb-4"></div>
+      <div className="space-y-4 sm:space-y-6">
+        {/* Search bar skeleton */}
+        <Card className="bg-card/50 backdrop-blur-md border-2 border-border p-3 sm:p-4 shadow-sm">
+          <Skeleton className="h-10 w-full rounded-md" />
+        </Card>
+
+        {/* Main weather card skeleton */}
+        <Card className="bg-card backdrop-blur-md border-2 border-border p-4 sm:p-6 shadow-md shadow-primary/5">
+          <div className="flex items-start justify-between mb-6">
             <div className="space-y-2">
-              <div className="h-4 bg-muted/20 rounded w-3/4"></div>
-              <div className="h-4 bg-muted/20 rounded w-1/2"></div>
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-36" />
             </div>
-          </Card>
-        ))}
+            <div className="text-right space-y-2">
+              <Skeleton className="h-12 w-24 ml-auto" />
+              <Skeleton className="h-4 w-20 ml-auto" />
+            </div>
+          </div>
+
+          {/* Metrics grid skeleton */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4 mb-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="flex items-center gap-3 p-4 rounded-xl bg-sky-100/30 dark:bg-slate-800/40 border border-sky-100/50 dark:border-slate-700/30">
+                <Skeleton className="h-10 w-10 rounded-lg flex-shrink-0" />
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* UV / AQI skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4">
+            <div className="p-4 rounded-xl border border-border/50">
+              <div className="flex items-center justify-between mb-3">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="h-2 w-full rounded-full" />
+            </div>
+            <div className="p-4 rounded-xl border border-border/50">
+              <div className="flex items-center justify-between mb-3">
+                <Skeleton className="h-5 w-24" />
+                <Skeleton className="h-5 w-16 rounded-full" />
+              </div>
+              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="h-2 w-full rounded-full" />
+            </div>
+          </div>
+        </Card>
+
+        {/* 5-day forecast skeleton */}
+        <Card className="bg-card backdrop-blur-md border-2 border-border p-4 sm:p-6 shadow-sm">
+          <Skeleton className="h-4 w-36 mb-4" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="text-center p-4 rounded-xl bg-gradient-to-br from-white/40 to-sky-100/20 dark:from-slate-800 dark:to-slate-900 border border-sky-100 dark:border-slate-700">
+                <Skeleton className="h-3 w-14 mx-auto mb-2" />
+                <Skeleton className="h-10 w-10 rounded-full mx-auto mb-3" />
+                <Skeleton className="h-5 w-10 mx-auto mb-1" />
+                <Skeleton className="h-3 w-8 mx-auto" />
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     );
   }
