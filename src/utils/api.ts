@@ -531,7 +531,19 @@ export const getFallbackWeatherData = async (location: Location): Promise<Weathe
   }
 };
 
-// Fetch emergency facilities securely via Supabase Edge Function to avoid CORS and Timeout limits
+// Calculate haversine distance
+function haversineDist(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// Fetch emergency facilities locally from Overpass API (nwr) to capture polygon structures like schools and temples
 export const fetchEmergencyFacilities = async (location: Location, radius: number = 10000): Promise<EmergencyFacility[]> => {
   const cacheKey = `facilities_${location.lat.toFixed(2)}_${location.lng.toFixed(2)}_${radius}`;
   const CACHE_TTL_MS = 30 * 60 * 1000; 
@@ -547,22 +559,78 @@ export const fetchEmergencyFacilities = async (location: Location, radius: numbe
   } catch { /* ignore parse errors */ }
 
   try {
-    const { data, error } = await supabase.functions.invoke('v1-nearby', {
-      body: { lat: location.lat, lng: location.lng, types: 'hospital,police,fire_station,school,place_of_worship,community_centre' }
+    const { lat, lng } = location;
+    // Using nwr (node, way, relation) and out center to ensure we catch large structures (Schools, Temples) which are mapped as polygons
+    const query = `
+      [out:json][timeout:25];
+      (
+        nwr["amenity"="hospital"](around:${radius},${lat},${lng});
+        nwr["amenity"="police"](around:${radius},${lat},${lng});
+        nwr["amenity"="fire_station"](around:${radius},${lat},${lng});
+        nwr["amenity"="school"](around:${radius},${lat},${lng});
+        nwr["amenity"="place_of_worship"](around:${radius},${lat},${lng});
+        nwr["amenity"="community_centre"](around:${radius},${lat},${lng});
+      );
+      out center;
+    `;
+
+    // Try multiple mirrors
+    const overpassUrls = [
+      'https://overpass-api.de/api/interpreter',
+      'https://lz4.overpass-api.de/api/interpreter',
+      'https://overpass.openstreetmap.ru/api/interpreter'
+    ];
+
+    let data = null;
+    for (const url of overpassUrls) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `data=${encodeURIComponent(query)}`,
+          signal: AbortSignal.timeout(10000)
+        });
+        if (res.ok) {
+          data = await res.json();
+          break;
+        }
+      } catch (e) {
+        continue;
+      }
+    }
+
+    if (!data?.elements) {
+      throw new Error("All Overpass API mirrors failed or returned invalid data");
+    }
+
+    const facilities: EmergencyFacility[] = data.elements.map((element: any) => {
+      let serviceType = 'other';
+      if (element.tags?.amenity === 'hospital') serviceType = 'hospital';
+      else if (element.tags?.amenity === 'police') serviceType = 'police';
+      else if (element.tags?.amenity === 'fire_station') serviceType = 'fire_station';
+      else if (element.tags?.amenity === 'school') serviceType = 'school';
+      else if (element.tags?.amenity === 'place_of_worship') serviceType = 'place_of_worship';
+      else if (element.tags?.amenity === 'community_centre') serviceType = 'community_centre';
+
+      // For ways/relations, coordinates are in element.center. For nodes, in element.lat/lon
+      const eLat = element.lat || element.center?.lat;
+      const eLng = element.lon || element.center?.lon;
+      
+      const distance = haversineDist(lat, lng, eLat, eLng);
+
+      return {
+        id: element.id?.toString(),
+        name: element.tags?.name || `${serviceType.replace('_', ' ')} facility`,
+        type: serviceType as 'hospital' | 'police' | 'fire_station' | 'shelter',
+        location: { lat: eLat, lng: eLng },
+        distance: distance,
+        contact: element.tags?.phone || element.tags?.['contact:phone'] || undefined,
+        address: element.tags?.['addr:full'] || element.tags?.['addr:street'] || undefined,
+        isOpen: true,
+      };
     });
 
-    if (error) throw error;
-    if (!data?.services) throw new Error('Invalid response from nearby function');
-
-    const facilities: EmergencyFacility[] = data.services.map((service: any) => ({
-      id: service.id,
-      name: service.name,
-      type: service.type as 'hospital' | 'police' | 'fire_station' | 'shelter',
-      location: { lat: service.lat, lng: service.lng },
-      distance: service.distance,
-      contact: service.phone,
-      isOpen: true,
-    }));
+    facilities.sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
     try {
       localStorage.setItem(cacheKey, JSON.stringify({ data: facilities, timestamp: Date.now() }));
@@ -570,7 +638,7 @@ export const fetchEmergencyFacilities = async (location: Location, radius: numbe
 
     return facilities;
   } catch (error) {
-    console.error('Error fetching emergency facilities:', error);
+    console.error('Error fetching emergency facilities deeply:', error);
     try {
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
