@@ -16,6 +16,10 @@
 </p>
 
 <p align="center">
+  <a href="https://predictaid.vercel.app/"><img src="https://img.shields.io/badge/🌐_Live_Demo-predictaid.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" /></a>
+</p>
+
+<p align="center">
   <a href="#-features">Features</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-neural-prediction-engine">AI/ML Engine</a> •
