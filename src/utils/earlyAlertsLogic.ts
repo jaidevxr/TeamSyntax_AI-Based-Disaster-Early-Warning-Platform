@@ -62,7 +62,10 @@ function haversine(
 export async function fetchEarlyAlertsLocal(
   lat: number,
   lng: number,
+  onProgress?: (phase: string) => void
 ): Promise<any> {
+  if (onProgress) onProgress("analyzing");
+
   const calculationSteps: any[] = [];
   const timed = async (fn: () => Promise<any>, source: string) => {
     const start = Date.now();
@@ -209,11 +212,31 @@ export async function fetchEarlyAlertsLocal(
   };
 
   const [wRes, fRes, sRes, gRes, eRes] = await Promise.all([
-    timed(fetchCurrentWeather, "Open-Meteo Current Weather"),
-    timed(fetchForecast, "Open-Meteo Forecast"),
-    timed(fetchSeismic, "USGS FDSNWS"),
-    timed(fetchGdacs, "GDACS"),
-    timed(fetchElevation, "Open-Meteo Elevation"),
+    timed(async () => {
+      const res = await fetchCurrentWeather();
+      if (onProgress) onProgress("fetching_weather");
+      return res;
+    }, "Open-Meteo Current Weather"),
+    timed(async () => {
+      const res = await fetchForecast();
+      if (onProgress) onProgress("fetching_precipitation");
+      return res;
+    }, "Open-Meteo Forecast"),
+    timed(async () => {
+      const res = await fetchSeismic();
+      if (onProgress) onProgress("fetching_seismic");
+      return res;
+    }, "USGS FDSNWS"),
+    timed(async () => {
+      const res = await fetchGdacs();
+      if (onProgress) onProgress("fetching_gdacs");
+      return res;
+    }, "GDACS"),
+    timed(async () => {
+      const res = await fetchElevation();
+      if (onProgress) onProgress("fetching_aqi");
+      return res;
+    }, "Open-Meteo Elevation"),
   ]);
 
   const weather = wRes.ok ? wRes.result : null;
@@ -224,6 +247,8 @@ export async function fetchEarlyAlertsLocal(
 
   const alerts: EarlyAlert[] = [];
   const now = new Date().toISOString();
+
+  if (onProgress) onProgress("fetching_imd");
 
   // ── Real ML Flood Prediction (TensorFlow.js Neural Network) ──────────────
   let floodML: MLPrediction | null = null;

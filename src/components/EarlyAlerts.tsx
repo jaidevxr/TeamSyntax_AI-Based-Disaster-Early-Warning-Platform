@@ -407,54 +407,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
     [userLocation],
   );
 
-  const fetchDoneRef = useRef(false);
 
-  const simulatePhases = useCallback(() => {
-    fetchDoneRef.current = false;
-    setCompletedPhases(new Set());
-    setCalcProgress(0);
-
-    const phaseKeys: CalcPhase[] = [
-      "fetching_weather",
-      "fetching_precipitation",
-      "fetching_seismic",
-      "fetching_gdacs",
-      "fetching_aqi",
-      "fetching_imd",
-      "analyzing",
-    ];
-    let idx = 0;
-
-    const advancePhase = () => {
-      // Stop immediately if the real fetch already finished — avoid overwriting 'done' state
-      if (fetchDoneRef.current) return;
-
-      if (idx < phaseKeys.length) {
-        setCurrentPhase(phaseKeys[idx]);
-        setCalcProgress(((idx + 1) / (phaseKeys.length + 1)) * 100);
-
-        // Mark previous phase as completed
-        if (idx > 0) {
-          setCompletedPhases((prev) => new Set([...prev, phaseKeys[idx - 1]]));
-        }
-
-        idx++;
-        phaseTimerRef.current = setTimeout(
-          advancePhase,
-          700 + Math.random() * 800,
-        );
-      } else {
-        // Mark the LAST phase (analyzing) as completed
-        setCompletedPhases(
-          (prev) => new Set([...prev, phaseKeys[phaseKeys.length - 1]]),
-        );
-        setCurrentPhase("done");
-        setCalcProgress(100);
-      }
-    };
-
-    advancePhase();
-  }, []);
 
   // ── Severity order helper (for trend comparison) ────────────────────────
   const severityRank = (s: EarlyAlert["severity"]) =>
@@ -466,24 +419,35 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
   const fetchAlerts = useCallback(async () => {
     if (!userLocation) return;
     setLoading(true);
-    simulatePhases();
+    setCompletedPhases(new Set());
+    setCalcProgress(0);
+    setCurrentPhase("fetching_weather");
 
     const { lat, lng } = userLocation;
 
     try {
       // Bypass Supabase Edge Function due to network timeouts
       // Run the ML models locally using our port
-      const data = await fetchEarlyAlertsLocal(lat, lng);
+      const data = await fetchEarlyAlertsLocal(lat, lng, (phase) => {
+        setCompletedPhases((prev) => {
+          const next = new Set(prev);
+          next.add(phase as CalcPhase);
+          return next;
+        });
+        setCurrentPhase(phase as CalcPhase);
+        setCalcProgress((prev) => Math.min(100, prev + (100 / PHASES.length)));
+      });
 
       if (!data) throw new Error("No data received from local ML function");
 
       const generatedAlerts = data.alerts || [];
 
-      fetchDoneRef.current = true; // Signal timer to stop
-      if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
       setCompletedPhases(new Set(PHASES.map((p) => p.key)));
       setCurrentPhase("done");
       setCalcProgress(100);
+      
+      // Let the final "100%" frame render so the user sees the completed pipeline before the cards drop in
+      await new Promise(r => setTimeout(r, 600));
 
       setAlerts(generatedAlerts);
       setFloodModel(data.floodModel);
@@ -509,7 +473,6 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
         "Failed to generate early alerts via local ML function:",
         err,
       );
-      fetchDoneRef.current = true;
       if (phaseTimerRef.current) clearTimeout(phaseTimerRef.current);
       setCurrentPhase("done");
       setCalcProgress(100);
@@ -519,7 +482,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
     } finally {
       setLoading(false);
     }
-  }, [userLocation, simulatePhases, notifyForAlerts]);
+  }, [userLocation, notifyForAlerts]);
 
   const generateAIBrief = async (data: any) => {
     setGeneratingBrief(true);
@@ -605,7 +568,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
           <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;">Disaster Decision Support Architecture</p>
         </div>
         <div style="text-align: right;">
-          <p style="margin: 0; font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Doc ID: PA-${Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
+          <p style="margin: 0; font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Doc ID: PA-${Date.now().toString(36).toUpperCase()}</p>
         </div>
       </div>
       
@@ -688,7 +651,8 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
           Internal Document | Predict Aid Core v0.9
         </div>
         <div style="font-size: 9px; color: #94a3b8; font-weight: 600; font-family: monospace;">
-          HEX_${Math.random().toString(16).substr(2, 6).toUpperCase()}
+          Generated ${dateStr}<br/>
+          HEX_${Date.now().toString(16).toUpperCase()}
         </div>
       </div>
     `;
