@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <a href="https://predictaid.vercel.app/"><img src="https://img.shields.io/badge/🌐_Live_Demo-predictaid.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" /></a>
+  <a href="https://predictaid.vercel.app/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/🌐_Live_Demo-predictaid.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo" /></a>
 </p>
 
 <p align="center">
@@ -301,6 +301,12 @@ Map tiles are intercepted, converted to Blobs, and cached in IndexedDB. If netwo
 
 ---
 
+## 📄 License
+
+This project is open-source and available under the [MIT License](LICENSE).
+
+---
+
 ## 👥 Contributors
 
 <table>
@@ -310,33 +316,21 @@ Map tiles are intercepted, converted to Blobs, and cached in IndexedDB. If netwo
     <img src="https://avatars.githubusercontent.com/u/151908969?v=4" width="100px;" alt="Jaidev Yadav" style="border-radius: 50%;" /><br />
     <sub><b>Jaidev Yadav</b></sub>
   </a>
-  <br />
-  <sub>Lead Developer</sub>
 </td>
 <td align="center">
   <a href="https://github.com/KhushiSharma006">
     <img src="https://avatars.githubusercontent.com/u/180095859?v=4" width="100px;" alt="Khushi Sharma" style="border-radius: 50%;" /><br />
     <sub><b>Khushi Sharma</b></sub>
   </a>
-  <br />
-  <sub>Frontend Development</sub>
 </td>
 <td align="center">
   <a href="https://github.com/iammadhvi2207">
     <img src="https://avatars.githubusercontent.com/u/159525760?v=4" width="100px;" alt="Madhvi Mishra" style="border-radius: 50%;" /><br />
     <sub><b>Madhvi Mishra</b></sub>
   </a>
-  <br />
-  <sub>UI/UX & Research</sub>
 </td>
 </tr>
 </table>
-
----
-
-## 📄 License
-
-This project is open-source and available under the [MIT License](LICENSE).
 
 ---
 
