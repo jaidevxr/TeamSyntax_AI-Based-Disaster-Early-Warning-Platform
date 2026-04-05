@@ -45,48 +45,6 @@ import {
 } from '@/utils/api';
 import { loadMLModels } from '@/utils/mlModels';
 
-const translations = {
-  en: {
-    communityIntel: "Community-Verified Intelligence",
-    correlating: "Correlating ML Predictions with Human SOS Reality",
-    activeSos: "Active SOS Reports",
-    signals: "Signals",
-    humanConfidence: "Human Confidence",
-    realTimeCorr: "Real-Time Correlation:",
-    validationText: (count: number) => `Scientific NN predictions are currently being validated by ${count} active community SOS signals. This high correlation increases the Practical Risk Level beyond standard model confidence.`,
-    high: "High",
-    moderate: "Moderate",
-    low: "Low",
-    viewDetails: "View Source Protocols",
-    hideDetails: "Hide Protocols",
-    sourceInfo: {
-      supabase: "Supabase Real-time: Live SOS signal stream from community reports.",
-      transformers: "Transformers.js: Local zero-shot NLP classification of community telemetry.",
-      storage: "IndexDB: Local persistence of community-verified events.",
-      correlation: "Neural Correlation Engine: Real-time weighting of local ML predictions against signal density."
-    }
-  },
-  hi: {
-    communityIntel: "समुदाय-सत्यापित खुफिया",
-    correlating: "मानव SOS वास्तविकता के साथ ML भविष्यवाणियों का सहसंबंध",
-    activeSos: "सक्रिय SOS रिपोर्ट",
-    signals: "संकेत",
-    humanConfidence: "मानव आत्मविश्वास",
-    realTimeCorr: "वास्तविक समय सहसंबंध:",
-    validationText: (count: number) => `वैज्ञानिक NN भविष्यवाणियां वर्तमान में ${count} सक्रिय सामुदायिक SOS संकेतों द्वारा मान्य की जा रही हैं। यह उच्च सहसंबंध मानक मॉडल आत्मविश्वास से परे व्यावहारिक जोखिम स्तर को बढ़ाता है।`,
-    high: "उच्च",
-    moderate: "मध्यम",
-    low: "कम",
-    viewDetails: "स्रोत प्रोटोकॉल देखें",
-    hideDetails: "प्रोटोकॉल छिपाएं",
-    sourceInfo: {
-      supabase: "Supabase रीयल-टाइम: सामुदायिक रिपोर्टों से लाइव SOS सिग्नल स्ट्रीम।",
-      transformers: "Transformers.js: सामुदायिक टेलीमेट्री का स्थानीय शून्य-शॉट NLP वर्गीकरण।",
-      storage: "IndexDB: समुदाय-सत्यापित घटनाओं की स्थानीय दृढ़ता।",
-      correlation: "तंत्रिका सहसंबंध इंजन: सिग्नल घनत्व के खिलाफ स्थानीय ML भविष्यवाणियों का रीयल-टाइम भार।"
-    }
-  }
-};
 
 const Dashboard: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
