@@ -139,32 +139,7 @@ const Dashboard: React.FC = () => {
     return () => window.removeEventListener('changeMapLayer', handleLayerChange as EventListener);
   }, []);
 
-  // 🧠 Neural Correlation Engine: ML Logic for Risk Assessment
-  const neuralCorrelation = React.useMemo(() => {
-    const nearbyCount = disasters.filter(d => {
-      if (!userLocation) return false;
-      const dist = calculateDistance(userLocation, d.location);
-      return dist < 1000; // Expanded Regional Radius
-    }).length;
 
-    const topPrediction = predictions.length > 0
-      ? Math.max(...predictions.map(p => p.severity === 'high' ? 0.9 : p.severity === 'medium' ? 0.6 : 0.3))
-      : 0.1;
-
-    // Weighting Algorithm: 60% ML Model, 40% Human SOS/Signals
-    const humanFactor = Math.min((nearbyCount + 5) * 0.08, 0.4); // Max 40% contribution from human signals
-    const modelFactor = topPrediction * 0.6;
-
-    const confidenceIndex = (modelFactor + humanFactor) * 100;
-    const riskLevel = confidenceIndex > 70 ? 'high' : confidenceIndex > 40 ? 'medium' : 'low';
-
-    return {
-      confidence: Math.round(confidenceIndex),
-      riskLevel,
-      sosWeight: Math.round(humanFactor * 100),
-      modelWeight: Math.round(modelFactor * 100)
-    };
-  }, [disasters, predictions, userLocation]);
 
   // Update data when user location changes
   useEffect(() => {
@@ -314,79 +289,6 @@ const Dashboard: React.FC = () => {
       case 'early-alerts':
         return (
           <div className="h-full overflow-y-auto p-3 pt-4 pb-20 md:pb-3 sm:p-6 md:pt-6">
-            <div className="mb-6 p-5 apple-glass rounded-2xl relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 dark:bg-slate-800/50 flex items-center justify-center border border-primary/20 dark:border-white/5 shadow-inner">
-                  <Globe className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold tracking-tight text-foreground uppercase">{translations[language].communityIntel}</h3>
-                  <p className="text-[10px] text-primary/60 font-semibold uppercase tracking-widest opacity-80">{translations[language].correlating}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between shadow-none">
-                  <div>
-                    <p className="text-[10px] text-slate-500 dark:text-muted-foreground font-bold uppercase mb-1">{translations[language].activeSos}</p>
-                    <p className="text-xl font-black text-slate-800 dark:text-foreground tabular-nums">
-                      {disasters.length + (neuralCorrelation.confidence > 50 ? 8 : 3)}
-                    </p>
-                  </div>
-                  <div className="flex gap-1">
-                    {[1, 2, 3].map(i => <div key={i} className="h-4 w-1 bg-slate-200 dark:bg-slate-700/30 rounded-full"></div>)}
-                    <div className="h-4 w-1 bg-primary/60 dark:bg-slate-400 rounded-full animate-pulse"></div>
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-slate-950/20 p-3 rounded-xl border border-slate-200 dark:border-white/5 flex items-center justify-between shadow-none">
-                  <div>
-                    <p className="text-[10px] text-primary/70 dark:text-muted-foreground font-bold uppercase mb-1">{translations[language].humanConfidence}</p>
-                    <p className="text-xl font-black text-primary dark:text-slate-400 tabular-nums">
-                      {neuralCorrelation.confidence > 65 ? translations[language].high : translations[language].moderate}
-                      <span className="text-[10px] font-bold text-primary/60 dark:text-muted-foreground/60 ml-2 tracking-tighter">({neuralCorrelation.confidence}%)</span>
-                    </p>
-                  </div>
-                  <div className="h-8 w-8 rounded-lg bg-primary/10 dark:bg-slate-400/10 flex items-center justify-center border border-primary/20 dark:border-transparent">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-white/5 space-y-4">
-                <p className="text-[11px] text-muted-foreground italic leading-relaxed">
-                  <strong>{translations[language].realTimeCorr}</strong> {translations[language].validationText(neuralCorrelation.confidence)}
-                </p>
-
-                <Collapsible open={showIntelDetails} onOpenChange={setShowIntelDetails}>
-                  <CollapsibleTrigger asChild>
-                    <button className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
-                      <Database className="h-3 w-3" />
-                      {showIntelDetails ? translations[language].hideDetails : translations[language].viewDetails}
-                      {showIntelDetails ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
-                    </button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-3 space-y-2 animate-in slide-in-from-top-1 duration-200">
-                    <div className="grid grid-cols-1 gap-2">
-                      {[
-                        { icon: <Radio className="h-3 w-3" />, text: translations[language].sourceInfo.supabase },
-                        { icon: <Database className="h-3 w-3" />, text: translations[language].sourceInfo.transformers },
-                        { icon: <Globe className="h-3 w-3" />, text: translations[language].sourceInfo.storage },
-                        { icon: <TrendingUp className="h-3 w-3" />, text: translations[language].sourceInfo.correlation }
-                      ].map((item, idx) => (
-                          <div key={idx} className="flex items-start gap-2 p-2 bg-white dark:bg-slate-950/20 rounded-lg border border-slate-200 dark:border-white/5 shadow-none">
-                          <div className="text-slate-500 mt-0.5">{item.icon}</div>
-                          <p className="text-[9px] font-bold text-slate-600 dark:text-slate-400 leading-tight uppercase tracking-tight">
-                            {item.text}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-            </div>
             <EarlyAlerts userLocation={userLocation} language={language} />
           </div>
         );
@@ -466,12 +368,7 @@ const Dashboard: React.FC = () => {
     <div className="min-h-screen bg-background relative">
       <AnimatedBackground />
 
-      {/* Global Urgency Aura (Sync with Neural Correlation) */}
-      {neuralCorrelation.riskLevel !== 'low' && (
-        <div className={`fixed inset-0 pointer-events-none z-[1] transition-all duration-1000 ${
-          neuralCorrelation.riskLevel === 'high' ? 'bg-red-500/5 animate-pulse' : 'bg-amber-500/5'
-        }`} />
-      )}
+
 
       <div className="flex h-screen w-full">
         {/* Sidebar */}
