@@ -3,6 +3,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Send, Loader2, Navigation, Mic, MicOff, MessageSquare, Volume2, Globe, ChevronRight, ArrowRight, Paperclip, ImageIcon, X } from 'lucide-react';
 import { useSaarthiPulse } from '@/hooks/useSaarthiPulse';
+import { searchLocation } from '@/utils/api';
 import type { Location } from '@/types';
 
 // ── Markdown ──────────────────────────────────────────────────────────────────
@@ -408,6 +409,84 @@ const CopilotChat = ({ userLocation, facilities = [] }: CopilotChatProps) => {
     setLoading(true);
 
     const langLabel = LANGUAGES.find(l => l.code === language)?.label || 'English';
+
+    // ── Live weather fetch: detect weather queries and fetch real data ──
+    let weatherContext = '';
+    const lowerInput = (activeInput || '').toLowerCase();
+    const isWeatherQuery = /\b(weather|temperature|temp|climate|rain|rainfall|humidity|wind|storm|forecast|mausam|mosam|tapman|barish|hawa|toofan|aqi|air quality|pollution)\b/i.test(lowerInput);
+
+    if (isWeatherQuery) {
+      try {
+        // Extract city name from query — remove common weather words to isolate the place
+        const placeQuery = lowerInput
+          .replace(/\b(what|is|the|weather|temperature|temp|climate|rain|rainfall|humidity|wind|storm|forecast|in|at|of|for|current|today|now|tell|me|about|how|show|give|mausam|mosam|tapman|barish|hawa|toofan|aqi|air|quality|pollution|like|bro|please|pls|kya|hai|ka|ki|ke|bata|batao|do)\b/g, '')
+          .trim();
+
+        // Determine coordinates: use extracted city name, or fall back to user's current location
+        let weatherLat = userLocation?.lat;
+        let weatherLng = userLocation?.lng;
+        let weatherCity = locationName || 'your location';
+
+        if (placeQuery.length > 1) {
+          const results = await searchLocation(placeQuery);
+          if (results.length > 0) {
+            weatherLat = results[0].lat;
+            weatherLng = results[0].lng;
+            weatherCity = results[0].name?.split(',')[0] || placeQuery;
+          }
+        }
+
+        if (weatherLat && weatherLng) {
+          // Fetch current weather from Open-Meteo (same source as heatmap — 100% real)
+          const [meteoRes, aqiRes] = await Promise.all([
+            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${weatherLat}&longitude=${weatherLng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto&forecast_days=3`),
+            fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${weatherLat}&longitude=${weatherLng}&current=us_aqi,pm2_5,pm10`),
+          ]);
+          const meteo = await meteoRes.json();
+          const aqi = await aqiRes.json();
+          const c = meteo.current;
+          const aq = aqi.current;
+
+          // Build weather context string with real data
+          const weatherCodes: Record<number, string> = {
+            0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+            45: 'Foggy', 48: 'Rime fog', 51: 'Light drizzle', 53: 'Moderate drizzle',
+            55: 'Dense drizzle', 61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+            71: 'Slight snow', 73: 'Moderate snow', 75: 'Heavy snow',
+            80: 'Rain showers', 81: 'Moderate showers', 82: 'Violent showers',
+            95: 'Thunderstorm', 96: 'Thunderstorm with hail', 99: 'Severe thunderstorm',
+          };
+          const condition = weatherCodes[c?.weather_code] || 'Unknown';
+
+          // 3-day forecast
+          let forecastStr = '';
+          if (meteo.daily) {
+            forecastStr = meteo.daily.time.map((d: string, i: number) => {
+              const dayName = new Date(d).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
+              return `${dayName}: ${meteo.daily.temperature_2m_max[i]}°C / ${meteo.daily.temperature_2m_min[i]}°C, Rain: ${meteo.daily.precipitation_sum[i]}mm, ${weatherCodes[meteo.daily.weather_code[i]] || ''}`;
+            }).join(' | ');
+          }
+
+          weatherContext = `
+
+📡 LIVE WEATHER DATA for ${weatherCity} (fetched just now from Open-Meteo API):
+- Condition: ${condition}
+- Temperature: ${c?.temperature_2m}°C (feels like ${c?.apparent_temperature}°C)
+- Humidity: ${c?.relative_humidity_2m}%
+- Wind: ${c?.wind_speed_10m} km/h
+- Pressure: ${c?.surface_pressure} hPa
+- Precipitation: ${c?.precipitation} mm/h
+- AQI (US EPA): ${aq?.us_aqi || 'N/A'} | PM2.5: ${aq?.pm2_5?.toFixed(1) || 'N/A'} µg/m³ | PM10: ${aq?.pm10?.toFixed(1) || 'N/A'} µg/m³
+- 3-Day Forecast: ${forecastStr}
+
+IMPORTANT: Use ONLY this real data above when answering. Do NOT make up or estimate any values. Present this data clearly and conversationally.`;
+          console.log(`🌤️ Saarthi: Fetched live weather for ${weatherCity} (${weatherLat?.toFixed(2)}, ${weatherLng?.toFixed(2)})`);
+        }
+      } catch (err) {
+        console.error('Weather fetch for chat failed:', err);
+      }
+    }
+
     const systemPrompt = `You are Saarthi, a highly intelligent disaster management AI for India.
 Rules:
 - Respond ONLY in ${langLabel}.
@@ -418,7 +497,8 @@ Rules:
   a) medical help, an ambulance, a doctor, or an injury.
   b) the nearest hospital or clinic.
 - DO NOT include hospital tokens for general safety questions like "what to do in an earthquake" unless they mention being hurt.
-- User location: ${locationName || 'India'}.`;
+- When asked about weather, provide accurate data using the live data context below. Never say you cannot access weather data.
+- User location: ${locationName || 'India'}.${weatherContext}`;
     try {
       let aiText = '';
 
@@ -675,25 +755,77 @@ Rules:
                     </button>
                   </div>
 
-                  {/* Facility cards */}
-                  {msg.content.includes('SHOW_FACILITIES') && facilities.length > 0 && (
-                    <div className="mt-2 space-y-2">
-                      {facilities.slice(0, 3).map((f, j) => (
-                        <div key={j} className="flex items-center justify-between bg-white/60 backdrop-blur-sm border border-white/80 rounded-xl px-3 py-2.5">
-                          <div>
-                            <p className="text-xs font-semibold text-slate-700 truncate max-w-[160px]">{f.name}</p>
-                            <p className="text-[10px] text-slate-400 font-medium">{f.distance?.toFixed(1)} km</p>
+                  {/* Facility cards — filtered by the type requested in the action token */}
+                  {msg.content.includes('SHOW_FACILITIES') && facilities.length > 0 && (() => {
+                    // Extract requested type from e.g. [ACTION:SHOW_FACILITIES:hospital] or [ACTION:SHOW_FACILITIES]
+                    const match = msg.content.match(/\[ACTION:SHOW_FACILITIES(?:[:|=]([^\]]+))?\]/);
+                    let requestedType = match && match[1] ? match[1].toLowerCase().trim() : '';
+                    
+                    // If no explicit type in token, infer from assistant's text
+                    if (!requestedType) {
+                      const lowerContent = msg.content.toLowerCase();
+                      if (lowerContent.includes('hospital') || lowerContent.includes('medical') || lowerContent.includes('doctor') || lowerContent.includes('health')) requestedType = 'hospital';
+                      else if (lowerContent.includes('police')) requestedType = 'police';
+                      else if (lowerContent.includes('fire')) requestedType = 'fire_station';
+                    }
+
+                    // Map common AI token values to actual facility type keys from Overpass data
+                    const typeAliases: Record<string, string[]> = {
+                      hospital:          ['hospital'],
+                      health:            ['hospital'],
+                      medical:           ['hospital'],
+                      clinic:            ['hospital'],
+                      doctor:            ['hospital'],
+                      ambulance:         ['hospital'],
+                      injury:            ['hospital'],
+                      police:            ['police'],
+                      fire:              ['fire_station'],
+                      fire_station:      ['fire_station'],
+                      shelter:           ['community_centre', 'school', 'place_of_worship'],
+                      school:            ['school'],
+                      place_of_worship:  ['place_of_worship'],
+                      community_centre:  ['community_centre'],
+                      temple:            ['place_of_worship'],
+                      mandir:            ['place_of_worship']
+                    };
+
+                    let allowedTypes: string[] = [];
+                    if (requestedType) {
+                      for (const [key, types] of Object.entries(typeAliases)) {
+                        if (requestedType.includes(key)) {
+                          allowedTypes.push(...types);
+                        }
+                      }
+                      if (allowedTypes.length === 0) allowedTypes = [requestedType];
+                    }
+
+                    // Filter facilities to the requested type; strictly filter instead of falling back to all
+                    const filtered = allowedTypes.length > 0
+                      ? facilities.filter(f => allowedTypes.includes(f.type))
+                      : facilities.filter(f => f.type === 'hospital'); // Default to hospital if utterly confused
+
+                    const toShow = filtered.slice(0, 3);
+                    if (toShow.length === 0) return null;
+
+                    return (
+                      <div className="mt-2 space-y-2">
+                        {toShow.map((f: any, j: number) => (
+                          <div key={j} className="flex items-center justify-between bg-white/60 backdrop-blur-sm border border-white/80 rounded-xl px-3 py-2.5">
+                            <div>
+                              <p className="text-xs font-semibold text-slate-700 truncate max-w-[160px]">{f.name}</p>
+                              <p className="text-[10px] text-slate-400 font-medium">{f.distance?.toFixed(1)} km</p>
+                            </div>
+                            <button onClick={() => {
+                              window.dispatchEvent(new CustomEvent('changeTab', { detail: 'emergency-services' }));
+                              setTimeout(() => window.dispatchEvent(new CustomEvent('routeToFacility', { detail: f })), 300);
+                            }} className="flex items-center gap-1 bg-sky-50 hover:bg-sky-500 text-sky-500 hover:text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex-shrink-0 ml-2">
+                              <Navigation className="w-3 h-3" /> Directions
+                            </button>
                           </div>
-                          <button onClick={() => {
-                            window.dispatchEvent(new CustomEvent('changeTab', { detail: 'emergency-services' }));
-                            setTimeout(() => window.dispatchEvent(new CustomEvent('routeToFacility', { detail: f })), 300);
-                          }} className="flex items-center gap-1 bg-sky-50 hover:bg-sky-500 text-sky-500 hover:text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all flex-shrink-0 ml-2">
-                            <Navigation className="w-3 h-3" /> Directions
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    );
+                  })()}
 
                   {/* Action pills */}
                   {((msg.content.match(/\[ACTION:[^\]]+\]/g) as string[]) || []).filter(t => !t.includes('SHOW_FACILITIES')).map((token, j) => (

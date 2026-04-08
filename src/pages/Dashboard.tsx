@@ -197,7 +197,9 @@ const Dashboard: React.FC = () => {
   const handleLocationSearch = useCallback((location: Location) => {
     setMapCenter(location);
     loadWeatherData(location);
-    loadNearbyFacilities(location);
+    // NOTE: Do NOT call loadNearbyFacilities here — facilities must stay
+    // tied to the user's real GPS location so the chatbot always shows
+    // hospitals near the user, not near the searched city.
   }, []);
 
   const handleTabChange = useCallback((tab: string) => {

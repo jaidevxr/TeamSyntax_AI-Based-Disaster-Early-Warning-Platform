@@ -64,8 +64,6 @@ export async function fetchEarlyAlertsLocal(
   lng: number,
   onProgress?: (phase: string) => void
 ): Promise<any> {
-  if (onProgress) onProgress("analyzing");
-
   const calculationSteps: any[] = [];
   const timed = async (fn: () => Promise<any>, source: string) => {
     const start = Date.now();
@@ -95,7 +93,7 @@ export async function fetchEarlyAlertsLocal(
       temp: data.current.temperature_2m,
       feelsLike: data.current.apparent_temperature,
       humidity: data.current.relative_humidity_2m,
-      windSpeed: data.current.wind_speed_10m / 3.6, // Convert km/h back to m/s for compatibility with previous math which multiplies by 3.6
+      windSpeed: data.current.wind_speed_10m / 3.6,
       pressure: data.current.surface_pressure,
       condition: data.current.weather_code >= 95 ? "Thunderstorm" : "",
       description: `WMO Weather Code: ${data.current.weather_code}`,
@@ -211,33 +209,21 @@ export async function fetchEarlyAlertsLocal(
     return data.elevation?.[0] || 0;
   };
 
-  const [wRes, fRes, sRes, gRes, eRes] = await Promise.all([
-    timed(async () => {
-      const res = await fetchCurrentWeather();
-      if (onProgress) onProgress("fetching_weather");
-      return res;
-    }, "Open-Meteo Current Weather"),
-    timed(async () => {
-      const res = await fetchForecast();
-      if (onProgress) onProgress("fetching_precipitation");
-      return res;
-    }, "Open-Meteo Forecast"),
-    timed(async () => {
-      const res = await fetchSeismic();
-      if (onProgress) onProgress("fetching_seismic");
-      return res;
-    }, "USGS FDSNWS"),
-    timed(async () => {
-      const res = await fetchGdacs();
-      if (onProgress) onProgress("fetching_gdacs");
-      return res;
-    }, "GDACS"),
-    timed(async () => {
-      const res = await fetchElevation();
-      if (onProgress) onProgress("fetching_aqi");
-      return res;
-    }, "Open-Meteo Elevation"),
-  ]);
+  // ── Run fetches SEQUENTIALLY so the pipeline phases fire in order ──
+  if (onProgress) onProgress("fetching_weather");
+  const wRes = await timed(fetchCurrentWeather, "Open-Meteo Current Weather");
+
+  if (onProgress) onProgress("fetching_precipitation");
+  const fRes = await timed(fetchForecast, "Open-Meteo Forecast");
+
+  if (onProgress) onProgress("fetching_seismic");
+  const sRes = await timed(fetchSeismic, "USGS FDSNWS");
+
+  if (onProgress) onProgress("fetching_gdacs");
+  const gRes = await timed(fetchGdacs, "GDACS");
+
+  if (onProgress) onProgress("fetching_aqi");
+  const eRes = await timed(fetchElevation, "Open-Meteo Elevation");
 
   const weather = wRes.ok ? wRes.result : null;
   const forecast = fRes.ok ? fRes.result : null;

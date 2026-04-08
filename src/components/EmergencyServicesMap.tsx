@@ -28,8 +28,10 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const [services, setServices] = useState<EmergencyService[]>([]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  // Real GPS location — never overwritten by city search. Used for routing.
+  const gpsLocationRef = useRef<[number, number] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(["hospital", "police", "fire_station", "school", "place_of_worship", "community_centre"]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(["hospital", "police", "fire_station"]);
   const [selectedService, setSelectedService] = useState<EmergencyService | null>(null);
   const [showingRoute, setShowingRoute] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,8 +112,12 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
   }, [searchQuery]);
 
   const handleSelectLocation = (location: Location) => {
-    setUserLocation([location.lat, location.lng]);
+    // Search changes the MAP VIEW and facility list, but does NOT overwrite
+    // the real GPS location used for routing directions.
     fetchNearbyServices(location.lat, location.lng);
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([location.lat, location.lng], 13, { animate: true });
+    }
     setSearchQuery('');
     setSearchResults([]);
     setShowDropdown(false);
@@ -139,6 +145,7 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
         const { latitude, longitude } = position.coords;
         const location: [number, number] = [latitude, longitude];
         setUserLocation(location);
+        gpsLocationRef.current = location;
 
         toast({
           title: "Location Detected",
@@ -181,6 +188,7 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
         // Default to Delhi
         const defaultLoc: [number, number] = [28.6139, 77.2090];
         setUserLocation(defaultLoc);
+        gpsLocationRef.current = defaultLoc;
         fetchNearbyServices(defaultLoc[0], defaultLoc[1]);
       },
       {
@@ -208,7 +216,9 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
   };
 
   const showRoute = async (service: EmergencyService) => {
-    if (!mapInstanceRef.current || !userLocation) {
+    // Always route from real GPS, not from a searched city
+    const routeFrom = gpsLocationRef.current || userLocation;
+    if (!mapInstanceRef.current || !routeFrom) {
       toast({
         title: "Cannot Show Route",
         description: "User location not available",
@@ -233,7 +243,7 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
       // Use OSRM's public API directly (no LRM wrapper = no demo-server warning)
       const url =
         `https://router.project-osrm.org/route/v1/driving/` +
-        `${userLocation[1]},${userLocation[0]};${service.lng},${service.lat}` +
+        `${routeFrom[1]},${routeFrom[0]};${service.lng},${service.lat}` +
         `?overview=full&geometries=polyline`;
 
       const res = await fetch(url);
@@ -461,7 +471,9 @@ const EmergencyServicesMap: React.FC<EmergencyServicesMapProps> = ({ onFacilityC
 
   useEffect(() => {
     if (dashboardLocation) {
-      setUserLocation([dashboardLocation.lat, dashboardLocation.lng]);
+      const loc: [number, number] = [dashboardLocation.lat, dashboardLocation.lng];
+      setUserLocation(loc);
+      gpsLocationRef.current = loc; // Set real GPS from dashboard's GPS
       fetchNearbyServices(dashboardLocation.lat, dashboardLocation.lng);
     } else {
       getUserLocation();

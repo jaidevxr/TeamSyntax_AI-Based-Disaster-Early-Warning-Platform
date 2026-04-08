@@ -33,7 +33,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { EmergencyFacility, Location } from '@/types';
-import { fetchEmergencyFacilities, getCurrentLocation } from '@/utils/api';
+import { getCurrentLocation } from '@/utils/api';
 import OfflineSOS from '@/components/OfflineSOS';
 
 interface DashboardSidebarProps {
@@ -58,7 +58,6 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
   children,
 }) => {
   const navigate = useNavigate();
-  const [facilities, setFacilities] = useState<EmergencyFacility[]>([]);
   const [loading, setLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<Location | null>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -170,14 +169,12 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
         const location = await getCurrentLocation();
         setUserLocation(location);
         onLocationUpdate(location);
-        loadEmergencyFacilities(location);
       } catch (error) {
         console.error('❌ [DashboardSidebar] Geolocation failed, using fallback:', error);
         // Fallback to New Delhi if geolocation is blocked or fails
         const fallback: Location = { lat: 28.6139, lng: 77.2090, name: 'New Delhi, Delhi' };
         setUserLocation(fallback);
         onLocationUpdate(fallback);
-        loadEmergencyFacilities(fallback);
       }
     };
 
@@ -216,16 +213,7 @@ const DashboardSidebar: React.FC<DashboardSidebarProps> = ({
     }
   };
 
-  const loadEmergencyFacilities = async (location: Location) => {
-    setLoading(true);
-    try {
-      const data = await fetchEmergencyFacilities(location);
-      setFacilities(data);
-    } catch (error) {
-      console.error('Error loading emergency facilities:', error);
-    }
-    setLoading(false);
-  };
+
 
   const getFacilityIcon = (type: string) => {
     switch (type) {

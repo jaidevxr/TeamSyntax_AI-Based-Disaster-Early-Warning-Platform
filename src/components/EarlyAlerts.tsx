@@ -4,8 +4,6 @@ import { escapeHtml } from "@/utils/sanitize";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertTriangle,
   ShieldAlert,
@@ -416,38 +414,54 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
   // Build a stable "type key" for cross-run comparison (same disaster type ≈ same ID)
   const alertTypeKey = (a: EarlyAlert) => a.type;
 
+  // Track which phase index we're on for smooth sequential progress
+  const phaseIndexRef = useRef(0);
+
   const fetchAlerts = useCallback(async () => {
     if (!userLocation) return;
     setLoading(true);
     setCompletedPhases(new Set());
     setCalcProgress(0);
-    setCurrentPhase("fetching_weather");
+    setCurrentPhase("idle");
+    phaseIndexRef.current = 0;
 
     const { lat, lng } = userLocation;
 
     try {
-      // Bypass Supabase Edge Function due to network timeouts
-      // Run the ML models locally using our port
       const data = await fetchEarlyAlertsLocal(lat, lng, (phase) => {
+        // Mark the PREVIOUS phase as completed, set new phase as active
         setCompletedPhases((prev) => {
           const next = new Set(prev);
-          next.add(phase as CalcPhase);
+          // All phases before the current one are completed
+          const phaseKeys = PHASES.map(p => p.key);
+          const newIdx = phaseKeys.indexOf(phase as CalcPhase);
+          if (newIdx >= 0) {
+            for (let i = 0; i < newIdx; i++) {
+              next.add(phaseKeys[i]);
+            }
+          }
           return next;
         });
         setCurrentPhase(phase as CalcPhase);
-        setCalcProgress((prev) => Math.min(100, prev + (100 / PHASES.length)));
+        // Smooth progress: each phase = one step
+        const phaseKeys = PHASES.map(p => p.key);
+        const idx = phaseKeys.indexOf(phase as CalcPhase);
+        if (idx >= 0) {
+          setCalcProgress(Math.round(((idx + 0.5) / PHASES.length) * 100));
+        }
       });
 
       if (!data) throw new Error("No data received from local ML function");
 
       const generatedAlerts = data.alerts || [];
 
+      // Mark all phases completed with a smooth final fill
       setCompletedPhases(new Set(PHASES.map((p) => p.key)));
       setCurrentPhase("done");
       setCalcProgress(100);
       
-      // Let the final "100%" frame render so the user sees the completed pipeline before the cards drop in
-      await new Promise(r => setTimeout(r, 600));
+      // Let the final "100%" frame render so the user sees the completed pipeline
+      await new Promise(r => setTimeout(r, 700));
 
       setAlerts(generatedAlerts);
       setFloodModel(data.floodModel);
@@ -892,7 +906,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* ═══ LIVE CALCULATION PROGRESS ═══ */}
       {loading && (
-        <div className="p-5 apple-glass rounded-2xl space-y-4 overflow-hidden relative shadow-none border border-primary/5">
+        <div className="p-5 apple-glass rounded-2xl space-y-4 overflow-hidden relative shadow-none border border-primary/5 animate-fade-in">
           <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -903,40 +917,70 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
                 <span className="text-[10px] font-black tracking-[0.2em] text-primary uppercase">
                   ML Diagnostic Pipeline
                 </span>
-                <span className="text-[10px] font-mono text-primary/60 font-bold">
+                <span className="text-[10px] font-mono text-primary/60 font-bold tabular-nums">
                   {Math.round(calcProgress)}%
                 </span>
               </div>
-              <Progress value={calcProgress} className="h-1 bg-slate-200 dark:bg-white/5 [&>div]:bg-primary/50" />
+              <div className="h-1 bg-slate-200 dark:bg-white/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary/50 rounded-full"
+                  style={{
+                    width: `${calcProgress}%`,
+                    transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                />
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-            {PHASES.map((phase) => {
+            {PHASES.map((phase, idx) => {
               const isCompleted = completedPhases.has(phase.key);
               const isActive = currentPhase === phase.key;
 
               return (
                 <div
                   key={phase.key}
-                  className={`flex items-center gap-3 py-2 px-3 rounded-lg border transition-all duration-500 ${isActive
-                    ? "bg-primary/5 dark:bg-primary/10 border-primary/20 shadow-none scale-[1.02]"
-                    : isCompleted
-                      ? "bg-slate-50 dark:bg-muted/30 border-slate-200 dark:border-transparent opacity-100"
-                      : "bg-transparent border-transparent opacity-40"
-                    }`}
+                  className={`flex items-center gap-3 py-2 px-3 rounded-lg border ${
+                    isActive
+                      ? "bg-primary/5 dark:bg-primary/10 border-primary/20 shadow-none"
+                      : isCompleted
+                        ? "bg-slate-50 dark:bg-muted/30 border-slate-200 dark:border-transparent"
+                        : "bg-transparent border-transparent"
+                  }`}
+                  style={{
+                    opacity: isActive ? 1 : isCompleted ? 1 : 0.35,
+                    transform: isActive ? 'scale(1.02)' : 'scale(1)',
+                    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
                 >
-                  <div className={`flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full ${isCompleted ? "bg-green-500/20" : isActive ? "bg-primary/20" : "bg-muted/50"}`}>
+                  <div
+                    className="flex-shrink-0 flex items-center justify-center h-5 w-5 rounded-full"
+                    style={{
+                      backgroundColor: isCompleted
+                        ? 'rgba(34, 197, 94, 0.2)'
+                        : isActive
+                          ? 'hsl(var(--primary) / 0.2)'
+                          : 'hsl(var(--muted) / 0.5)',
+                      transition: 'background-color 0.4s ease',
+                    }}
+                  >
                     {isCompleted ? (
-                      <CheckCircle2 className="h-3 w-3 text-green-500" />
+                      <CheckCircle2 className="h-3 w-3 text-green-500" style={{ animation: 'fade-in 0.3s ease-out' }} />
                     ) : isActive ? (
-                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-ping" />
+                      <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                     ) : (
                       <div className="h-1 w-1 rounded-full bg-muted-foreground/30" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-[11px] font-bold uppercase tracking-wider ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                    <p
+                      className="text-[11px] font-bold uppercase tracking-wider"
+                      style={{
+                        color: isActive ? 'hsl(var(--primary))' : undefined,
+                        transition: 'color 0.3s ease',
+                      }}
+                    >
                       {phase.label}
                     </p>
                     <p className="text-[9px] text-muted-foreground/60 font-mono truncate">
@@ -950,44 +994,13 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
         </div>
       )}
 
-      {/* Skeleton alert cards during loading */}
-      {loading && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-4 rounded-xl border border-border/30">
-              <div className="flex items-start gap-3">
-                <Skeleton className="h-10 w-10 rounded-xl flex-shrink-0" />
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-5 w-20 rounded-full flex-shrink-0" />
-                  </div>
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-3/4" />
-                  <div className="flex items-center gap-2 mt-2">
-                    <Skeleton className="h-2 w-24" />
-                    <Skeleton className="h-4 w-16 rounded-full" />
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))}
-          {/* Skeleton composite risk card */}
-          <Card className="p-4 rounded-xl border border-border/30">
-            <div className="flex items-center justify-between mb-3">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-8 w-16" />
-            </div>
-            <Skeleton className="h-2 w-full rounded-full" />
-            <Skeleton className="h-3 w-2/3 mt-2" />
-          </Card>
-        </div>
-      )}
-
       {/* No alerts - Clean line */}
       {
         !loading && alerts.length === 0 && (
-          <div className="flex items-center gap-3 p-4 apple-glass rounded-xl shadow-none border border-primary/10">
+          <div
+            className="flex items-center gap-3 p-4 apple-glass rounded-xl shadow-none border border-primary/10"
+            style={{ animation: 'fade-in 0.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+          >
             <CheckCircle2 className="h-4 w-4 text-primary" />
             <span className="text-[11px] font-bold text-primary dark:text-muted-foreground uppercase tracking-[0.1em]">
               Atmospheric Continuity Secured | No Active Threats
@@ -998,14 +1011,18 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
 
       {/* Alert Cards */}
       {
-        alerts.filter((alert) => alert.severity !== "watch").map((alert) => {
+        alerts.filter((alert) => alert.severity !== "watch").map((alert, idx) => {
           const config = getSeverityConfig(alert.severity);
           const isExpanded = expandedAlerts.has(alert.id);
 
           return (
             <Card
               key={alert.id}
-              className={`overflow-hidden shadow-none transition-all duration-200 apple-glass ${config.border} ${config.bg} ${config.glow}`}
+              className={`overflow-hidden shadow-none apple-glass ${config.border} ${config.bg} ${config.glow}`}
+              style={{
+                animation: `fade-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${idx * 0.12}s both`,
+                transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+              }}
             >
               <div
                 className="p-4 cursor-pointer"
@@ -1033,7 +1050,7 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
                       {alert.description}
                     </p>
                   </div>
-                  <div className="flex-shrink-0">
+                  <div className="flex-shrink-0" style={{ transition: 'transform 0.2s ease' }}>
                     {isExpanded ? (
                       <ChevronUp className="h-4 w-4 text-muted-foreground" />
                     ) : (
@@ -1044,7 +1061,10 @@ const EarlyAlerts: React.FC<EarlyAlertsProps> = ({ userLocation, language }) => 
               </div>
 
               {isExpanded && (
-                <div className="px-4 pb-4 border-t border-border/30 pt-3 space-y-3">
+                <div
+                  className="px-4 pb-4 border-t border-border/30 pt-3 space-y-3"
+                  style={{ animation: 'fade-in 0.3s ease-out' }}
+                >
                   <p className="text-sm text-foreground">{alert.description}</p>
 
                   {/* Algorithm details */}

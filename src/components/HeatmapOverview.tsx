@@ -35,7 +35,8 @@ type MapLayer = 'default' | 'satellite' | 'terrain' | 'streets';
 const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocation, nearbyDisasters }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.CircleMarker[]>([]);
+  const glowLayerRef = useRef<L.LayerGroup | null>(null);
+  const tooltipLayerRef = useRef<L.LayerGroup | null>(null);
   const stateLayerRef = useRef<any>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<RiskLevel>>(
@@ -549,8 +550,8 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       const dataMap = new Map<string, { temp: number; aqi: number; floodRisk: number; floodFactors: string[] }>();
 
       try {
-        // Phase 1: Fetch weather in small chunks — CURRENT data ONLY (no hourly/forecast to minimize payload)
-        const METEO_CHUNK = 25;
+        // Phase 1: Fetch weather in larger chunks to reduce number of requests
+        const METEO_CHUNK = 50;
         let meteoData: any[] = new Array(cities.length).fill(null);
         let aqiData: any[] = new Array(cities.length).fill(null);
 
@@ -589,79 +590,81 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
         const weatherCount = meteoData.filter(Boolean).length;
         console.log(`🌦️ Weather data fetched for ${weatherCount}/${cities.length} cities`);
 
-        // Phase 2: Process each city — compute risk from current data + fetch AQI
-        const AQI_BATCH = 10;
-        for (let i = 0; i < cities.length; i += AQI_BATCH) {
-          if (signal.aborted) break;
-          const batch = cities.slice(i, i + AQI_BATCH);
-
-          await Promise.allSettled(
-            batch.map(async (city, idx) => {
-              const cityIndex = i + idx;
-              const { lat, lng } = city;
-              try {
-                let temp: number | null = null;
-                let floodRisk = 0;
-                let floodFactors: string[] = [];
-
-                if (meteoData[cityIndex]?.current?.temperature_2m != null) {
-                  const current = meteoData[cityIndex].current;
-                  temp = current.temperature_2m;
-                  const humidity = current.relative_humidity_2m || 50;
-                  const pressure = current.surface_pressure || 1010;
-                  const wind = current.wind_speed_10m || 10;
-                  const currentPrecip = current.precipitation || 0;
-
-                  // Estimate precipitation values from current reading
-                  const estimatedPrecip24h = currentPrecip * 24;
-                  const estimatedPrecip48h = currentPrecip * 48;
-                  const estimatedPrecip72h = currentPrecip * 72;
-                  const is_monsoon = [5, 6, 7, 8, 9].includes(new Date().getMonth()) ? 1 : 0;
-                  const is_coastal = (lng < 74 || lng > 83 || (lat < 16 && lng > 74)) ? 1 : 0;
-
-                  // Run ML model inference with estimated features
-                  const prediction = await predictFlood({
-                    rainfall_24h_mm: estimatedPrecip24h,
-                    rainfall_48h_mm: estimatedPrecip48h,
-                    rainfall_72h_mm: estimatedPrecip72h,
-                    max_hourly_rate_mm: currentPrecip,
-                    temperature_c: temp,
-                    humidity_pct: humidity,
-                    pressure_hpa: pressure,
-                    wind_speed_kmh: wind,
-                    is_monsoon,
-                    is_coastal
-                  });
-
-                  if (prediction) {
-                    floodRisk = prediction.probability;
-                    floodFactors = [
-                      `Precip: ${currentPrecip.toFixed(1)}mm/h`,
-                      `Humidity: ${humidity}%`,
-                      `Pressure: ${pressure.toFixed(0)}hPa`,
-                      `Wind: ${wind.toFixed(1)}km/h`
-                    ];
-                  }
-                }
-
-                // Get AQI from the bulk Open-Meteo response instead of 50 individual WAQI API calls
-                let aqi: number | null = null;
-                if (aqiData[cityIndex]?.current?.us_aqi != null) {
-                  aqi = aqiData[cityIndex].current.us_aqi;
-                }
-
-                if (temp !== null) {
-                  dataMap.set(`${lat},${lng}`, { temp, aqi: aqi || 75, floodRisk, floodFactors });
-                }
-              } catch { /* per-city failure */ }
-            })
-          );
-
-
-          // Progressive render every 10 cities
-          if (dataMap.size > 0 && i % 10 === 0) {
-            setWeatherData(new Map(dataMap));
+        // 🔍 DATA VERIFICATION: Log sample real data so user can confirm authenticity
+        const sampleCities = ['Delhi', 'Mumbai', 'Chennai', 'Kolkata', 'Bangalore'];
+        const cityNames = ['Delhi', 'Mumbai', 'Chennai', 'Kolkata', 'Bangalore'];
+        [0, 13, 60, 36, 56].forEach((idx, i) => {
+          if (meteoData[idx]?.current) {
+            const c = meteoData[idx].current;
+            const aq = aqiData[idx]?.current;
+            console.log(`📊 REAL DATA [${cityNames[i]}]: Temp=${c.temperature_2m}°C, Humidity=${c.relative_humidity_2m}%, Precip=${c.precipitation}mm/h, Wind=${c.wind_speed_10m}km/h, AQI=${aq?.us_aqi || 'N/A'}`);
           }
+        });
+
+        // Phase 2: Process all cities synchronously — compute risk + AQI
+        // Collect all ML prediction inputs first, then batch-predict
+        const pendingPredictions: { cityIndex: number; lat: number; lng: number; temp: number; humidity: number; pressure: number; wind: number; precip: number; input: any }[] = [];
+
+        for (let i = 0; i < cities.length; i++) {
+          if (signal.aborted) break;
+          const { lat, lng } = cities[i];
+          if (meteoData[i]?.current?.temperature_2m != null) {
+            const current = meteoData[i].current;
+            const temp = current.temperature_2m;
+            const humidity = current.relative_humidity_2m || 50;
+            const pressure = current.surface_pressure || 1010;
+            const wind = current.wind_speed_10m || 10;
+            const currentPrecip = current.precipitation || 0;
+            const is_monsoon = [5, 6, 7, 8, 9].includes(new Date().getMonth()) ? 1 : 0;
+            const is_coastal = (lng < 74 || lng > 83 || (lat < 16 && lng > 74)) ? 1 : 0;
+
+            const aqi = aqiData[i]?.current?.us_aqi ?? 75;
+
+            // Store temp data immediately
+            dataMap.set(`${lat},${lng}`, { temp, aqi, floodRisk: 0, floodFactors: [] });
+
+            pendingPredictions.push({
+              cityIndex: i, lat, lng, temp, humidity, pressure, wind, precip: currentPrecip,
+              input: {
+                rainfall_24h_mm: currentPrecip * 24,
+                rainfall_48h_mm: currentPrecip * 48,
+                rainfall_72h_mm: currentPrecip * 72,
+                max_hourly_rate_mm: currentPrecip,
+                temperature_c: temp,
+                humidity_pct: humidity,
+                pressure_hpa: pressure,
+                wind_speed_kmh: wind,
+                is_monsoon,
+                is_coastal
+              }
+            });
+          }
+        }
+
+        // Batch ML predictions — run in small groups to avoid blocking UI thread
+        const ML_BATCH = 20;
+        for (let b = 0; b < pendingPredictions.length; b += ML_BATCH) {
+          if (signal.aborted) break;
+          const batch = pendingPredictions.slice(b, b + ML_BATCH);
+          const results = await Promise.allSettled(
+            batch.map(p => predictFlood(p.input))
+          );
+          results.forEach((res, idx) => {
+            const p = batch[idx];
+            const key = `${p.lat},${p.lng}`;
+            const existing = dataMap.get(key);
+            if (existing && res.status === 'fulfilled' && res.value) {
+              existing.floodRisk = res.value.probability;
+              existing.floodFactors = [
+                `Precip: ${p.precip.toFixed(1)}mm/h`,
+                `Humidity: ${p.humidity}%`,
+                `Pressure: ${p.pressure.toFixed(0)}hPa`,
+                `Wind: ${p.wind.toFixed(1)}km/h`
+              ];
+            }
+          });
+          // Yield to UI thread between batches
+          await new Promise(r => setTimeout(r, 0));
         }
       } catch {
         // Ignore abort errors
@@ -673,7 +676,10 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
         setLoading(false);
         setLoadingDismissed(false);
         setLoadingProgress({ current: 0, total: 0 });
-        console.log(`✅ Heatmap loaded ${dataMap.size}/${totalCities} cities`);
+        console.log(`✅ Heatmap loaded ${dataMap.size}/${totalCities} cities with REAL Open-Meteo + AQI data`);
+        console.log(`🌡️ Temperature range: ${Math.min(...Array.from(dataMap.values()).map(d => d.temp)).toFixed(1)}°C to ${Math.max(...Array.from(dataMap.values()).map(d => d.temp)).toFixed(1)}°C`);
+        console.log(`💨 AQI range: ${Math.min(...Array.from(dataMap.values()).map(d => d.aqi))} to ${Math.max(...Array.from(dataMap.values()).map(d => d.aqi))}`);
+        console.log(`🌊 Flood risk range: ${(Math.min(...Array.from(dataMap.values()).map(d => d.floodRisk)) * 100).toFixed(0)}% to ${(Math.max(...Array.from(dataMap.values()).map(d => d.floodRisk)) * 100).toFixed(0)}%`);
       }
     };
 
@@ -711,106 +717,93 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
     }
   };
 
-  // Update markers
+  // Update heatmap glow circles + tooltip markers using Leaflet LayerGroups
+  // Uses Leaflet's native renderer so circles move perfectly with the map (no lag)
   useEffect(() => {
     if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
 
-    // Remove old markers
-    markersRef.current.forEach(marker => {
-      mapInstanceRef.current?.removeLayer(marker);
-    });
-    markersRef.current = [];
+    // Clear previous layers
+    if (glowLayerRef.current) { map.removeLayer(glowLayerRef.current); }
+    if (tooltipLayerRef.current) { map.removeLayer(tooltipLayerRef.current); }
 
-    if (overlayMode === 'disaster') {
-      // Show disaster risk — 100% driven by real API data (temp + AQI), no static geo-zones
-      weatherData.forEach((data, key) => {
-        const [lat, lng] = key.split(',').map(Number);
+    const glowGroup = L.layerGroup();
+    const tooltipGroup = L.layerGroup();
 
-        // ── Real-data risk model ──────────────────────────────────────────────
-        // Driven 100% by live TF.js Neural Network Inference
-        let dynamicRisk = data.floodRisk || 0;
-        const riskFactors: string[] = data.floodFactors || ["Awaiting ML Inference..."];
+    weatherData.forEach((data, key) => {
+      const [lat, lng] = key.split(',').map(Number);
 
-        const level = getIntensityRange(dynamicRisk);
+      if (overlayMode === 'disaster') {
+        const risk = data.floodRisk || 0;
+        const level = getIntensityRange(risk);
         if (!activeFilters.has(level)) return;
+        const riskFactors = data.floodFactors || ['Awaiting ML Inference...'];
 
-        // Large glow circle
-        const glowCircle = L.circleMarker([lat, lng], {
+        // ── Large glow circle (blurred via CSS for authentic heatmap look) ──
+        L.circleMarker([lat, lng], {
           radius: heatmapRadius,
-          fillColor: getColor(dynamicRisk, 'disaster', 0.25),
+          fillColor: getColor(risk, 'disaster', 0.5),
           color: 'transparent',
           weight: 0,
           fillOpacity: 1,
-          className: 'heatmap-glow'
-        });
+          className: 'heatmap-glow',
+          interactive: false, // no events = no overhead
+        } as any).addTo(glowGroup);
 
-        // Hover circle with real-data tooltip
-        const hoverCircle = L.circleMarker([lat, lng], {
-          radius: 30,
+        // ── Invisible hover circle for tooltip ──
+        L.circleMarker([lat, lng], {
+          radius: 25,
           fillColor: 'transparent',
           color: 'transparent',
           weight: 0,
           fillOpacity: 0,
         }).bindTooltip(`
             <strong>Disaster Risk Score</strong><br/>
-            Level: <strong style="color: ${getColor(dynamicRisk, 'disaster', 1)}">${level.toUpperCase()}</strong>
-            &nbsp;(${(dynamicRisk * 100).toFixed(0)}%)<br/>
+            Level: <strong style="color: ${getColor(risk, 'disaster', 1)}">${level.toUpperCase()}</strong>
+            &nbsp;(${(risk * 100).toFixed(0)}%)<br/>
             <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.2);">
               <span style="opacity: 0.8; font-size: 10px;">Live data factors:</span>
               <ul style="margin: 2px 0 0 0; padding-left: 14px; opacity: 0.9;">
                 ${riskFactors.map(f => `<li>${f}</li>`).join('')}
               </ul>
             </div>
-          </div>
-        `, {
-          permanent: false,
-          direction: 'top',
-          className: 'custom-tooltip'
-        });
-
-        glowCircle.addTo(mapInstanceRef.current!);
-        hoverCircle.addTo(mapInstanceRef.current!);
-        markersRef.current.push(glowCircle, hoverCircle);
-      });
-    } else if (weatherData.size > 0) {
-      // Show weather/pollution data with heatmap glow effect
-      weatherData.forEach((data, key) => {
-        const [lat, lng] = key.split(',').map(Number);
+        `, { permanent: false, direction: 'top', className: 'custom-tooltip' }).addTo(tooltipGroup);
+      } else {
         const value = overlayMode === 'temperature' ? data.temp : data.aqi;
 
-        // Large glow circle for heatmap effect
-        const glowCircle = L.circleMarker([lat, lng], {
+        // ── Large glow circle ──
+        L.circleMarker([lat, lng], {
           radius: heatmapRadius,
-          fillColor: getColor(value, overlayMode, 0.25),
+          fillColor: getColor(value, overlayMode, 0.5),
           color: 'transparent',
           weight: 0,
           fillOpacity: 1,
-          className: 'heatmap-glow'
-        });
+          className: 'heatmap-glow',
+          interactive: false,
+        } as any).addTo(glowGroup);
 
-        // Invisible interactive layer for hover tooltip
-        const hoverCircle = L.circleMarker([lat, lng], {
-          radius: 30,
+        // ── Hover tooltip ──
+        L.circleMarker([lat, lng], {
+          radius: 25,
           fillColor: 'transparent',
           color: 'transparent',
           weight: 0,
           fillOpacity: 0,
         }).bindTooltip(`
           <div style="font-size: 11px; padding: 4px;">
-            <strong>${overlayMode === 'temperature' ? 'Temperature' : 'Air Quality'}</strong><br/>
-            ${overlayMode === 'temperature' ? `<strong>${data.temp.toFixed(1)}°C</strong>` : `AQI: <strong>${data.aqi.toFixed(0)}</strong>`}
+            <strong>${overlayMode === 'temperature' ? '🌡️ Temperature' : '💨 Air Quality'}</strong><br/>
+            ${overlayMode === 'temperature'
+              ? `<strong>${data.temp.toFixed(1)}°C</strong> <span style="opacity:0.7;font-size:10px;">(Open-Meteo Live)</span>`
+              : `AQI: <strong>${data.aqi.toFixed(0)}</strong> <span style="opacity:0.7;font-size:10px;">(US EPA Standard)</span>`}
           </div>
-        `, {
-          permanent: false,
-          direction: 'top',
-          className: 'custom-tooltip'
-        });
+        `, { permanent: false, direction: 'top', className: 'custom-tooltip' }).addTo(tooltipGroup);
+      }
+    });
 
-        glowCircle.addTo(mapInstanceRef.current!);
-        hoverCircle.addTo(mapInstanceRef.current!);
-        markersRef.current.push(glowCircle, hoverCircle);
-      });
-    }
+    glowGroup.addTo(map);
+    tooltipGroup.addTo(map);
+    glowLayerRef.current = glowGroup;
+    tooltipLayerRef.current = tooltipGroup;
   }, [overlayMode, weatherData, activeFilters, heatmapRadius]);
 
   return (
@@ -818,18 +811,20 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
       <style>{`
         .heatmap-glow {
           filter: blur(${heatmapBlur}px);
-          opacity: 0.7;
+          opacity: 0.75;
+          will-change: transform;
         }
         .custom-tooltip {
-          background: rgba(0, 0, 0, 0.8) !important;
+          background: rgba(0, 0, 0, 0.85) !important;
           border: 1px solid rgba(255, 255, 255, 0.2) !important;
           border-radius: 8px !important;
           padding: 4px 8px !important;
           color: white !important;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+          font-size: 11px !important;
         }
         .custom-tooltip::before {
-          border-top-color: rgba(0, 0, 0, 0.8) !important;
+          border-top-color: rgba(0, 0, 0, 0.85) !important;
         }
         .state-tooltip {
           background: rgba(51, 136, 255, 0.85) !important;
