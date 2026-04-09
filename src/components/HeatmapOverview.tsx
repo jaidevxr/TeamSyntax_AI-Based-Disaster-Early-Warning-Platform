@@ -44,8 +44,8 @@ const HeatmapOverview: React.FC<HeatmapOverviewProps> = ({ disasters, userLocati
   );
   const [overlayMode, setOverlayMode] = useState<OverlayMode>('disaster');
   const [mapLayer, setMapLayer] = useState<MapLayer>('default');
-  const [heatmapRadius, setHeatmapRadius] = useState(60);
-  const [heatmapBlur, setHeatmapBlur] = useState(35);
+  const [heatmapRadius, setHeatmapRadius] = useState(35);
+  const [heatmapBlur, setHeatmapBlur] = useState(25);
   const [weatherData, setWeatherData] = useState<Map<string, { temp: number; aqi: number; floodRisk: number; floodFactors: string[] }>>(new Map());
   const [loading, setLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
